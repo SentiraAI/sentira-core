@@ -134,6 +134,20 @@ def test_testo_diventa_html_se_html_non_dato(cattura):
     assert cattura[0]["payload"]["text"] == "**grassetto**"
 
 
-def test_alias_di_compatibilita_puntano_alle_nuove_funzioni():
-    assert emailer.send_html_email is emailer.invia
-    assert emailer.render_template is emailer.rendi
+def test_firma_storica_con_parametri_per_nome(cattura):
+    """I chiamanti esistenti passano `subject=` e `text=`, non `oggetto=`/`testo=`.
+
+    Un semplice alias (`send_html_email = invia`) avrebbe mantenuto il nome
+    della funzione ma cambiato i nomi dei parametri sotto i piedi a chi chiama,
+    con un TypeError a runtime. Serve un wrapper vero.
+    """
+    emailer.send_html_email(to="a@x.it", subject="Oggetto", text="ciao",
+                            idempotency_key="k", cc="c@x.it")
+    payload = cattura[0]["payload"]
+    assert payload["subject"] == "Oggetto"
+    assert payload["text"] == "ciao"
+    assert payload["cc"] == ["c@x.it"]
+
+
+def test_render_template_firma_storica():
+    assert emailer.render_template("Ciao {{n}}", {"n": "Mauro"}) == "Ciao Mauro"

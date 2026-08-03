@@ -161,9 +161,22 @@ def invia(to: str | list[str], oggetto: str, html: str | None = None,
     return email_id
 
 
-# ── Compatibilità con i nomi usati finora nei due progetti ──────────────────
-# Le applicazioni chiamano send_html_email()/render_template(): questi alias
-# rendono la migrazione un cambio di import, non una riscrittura dei chiamanti.
-send_html_email = invia
-render_template = rendi
+# ── Compatibilità con la firma usata finora nei due progetti ────────────────
+# NON bastano degli alias: i chiamanti passano i parametri per nome
+# (`subject=`, `text=`), e un semplice `send_html_email = invia` cambierebbe i
+# nomi sotto i piedi a chi chiama. Questi sono wrapper veri, con la firma
+# storica, che traducono verso quella nuova.
+
+def send_html_email(to, subject, html=None, text=None,
+                    idempotency_key=None, cc=None):
+    """Firma storica di `invia()`. Mantenuta per i chiamanti esistenti."""
+    return invia(to, subject, html=html, testo=text,
+                 idempotency_key=idempotency_key, cc=cc)
+
+
+def render_template(testo: str, variabili: dict) -> str:
+    """Firma storica di `rendi()`."""
+    return rendi(testo, variabili)
+
+
 _text_to_html = _testo_in_html
