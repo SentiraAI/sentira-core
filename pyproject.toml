@@ -7,7 +7,9 @@ name = "sentira-core"
 version = "1.0.0"
 description = "Codice comune ai prodotti Sentira: auth, email, notifiche, SQLite"
 readme = "README.md"
-requires-python = ">=3.11"
+# 3.10 e non 3.11: l'immagine mcr.microsoft.com/playwright/python:v1.49.0-jammy,
+# su cui gira lead-hunter-v2 in produzione, porta Python 3.10.12.
+requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Sentira" }]
 dependencies = [

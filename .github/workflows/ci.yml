@@ -31,10 +31,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Gli estremi di quello che pyproject dichiara (requires-python >=3.11):
-        # 3.11 e' il minimo supportato, 3.12 e' quello delle immagini dei
-        # prodotti. Se un giorno il minimo sale, va cambiato in entrambi i posti.
-        python: ["3.11", "3.12"]
+        # Le versioni su cui questa libreria gira DAVVERO in produzione:
+        #   3.10 -> immagine Playwright di lead-hunter-v2 (3.10.12)
+        #   3.12 -> immagine python:3.12-slim di dropbox-agent
+        # 3.11 sta in mezzo. Testare solo 3.12 avrebbe lasciato passare un
+        # pacchetto che su meta' della produzione non si installa nemmeno —
+        # ed e' esattamente quello che e' successo al primo deploy.
+        python: ["3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
