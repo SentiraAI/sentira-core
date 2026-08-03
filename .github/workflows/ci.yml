@@ -1,0 +1,45 @@
+name: CI
+
+# CI propria, NON la pipeline condivisa di SentiraAI/infra.
+#
+# Motivo: un repository PUBBLICO non puo' richiamare un reusable workflow che
+# vive in un repository PRIVATO — GitHub rifiuta il workflow in validazione, e
+# il run muore in 0 secondi con "This run likely failed because of a workflow
+# file issue", senza dire quale sia il problema. Verificato il 3/8/2026, su
+# questo repo, al primo push.
+#
+# Non e' comunque una perdita: la pipeline condivisa esiste per test + build
+# frontend + deploy su Coolify. Qui non c'e' un frontend e non c'e' niente da
+# deployare — e' una libreria. Serve solo far girare i test, sulle versioni di
+# Python che il pyproject dichiara di supportare.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # Gli estremi di quello che pyproject dichiara (requires-python >=3.11):
+        # 3.11 e' il minimo supportato, 3.12 e' quello delle immagini dei
+        # prodotti. Se un giorno il minimo sale, va cambiato in entrambi i posti.
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: pip install -e . pytest
+      - run: python -m pytest tests/ -q
