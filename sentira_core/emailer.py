@@ -166,3 +166,4 @@ def invia(to: str | list[str], oggetto: str, html: str | None = None,
 # rendono la migrazione un cambio di import, non una riscrittura dei chiamanti.
 send_html_email = invia
 render_template = rendi
+_text_to_html = _testo_in_html

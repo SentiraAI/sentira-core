@@ -115,3 +115,14 @@ def test_token_malformato_non_esplode(app_e_auth):
     _, auth = app_e_auth
     for cattivo in (None, "", "senzadueppunti", "a:b:c:d", "ok:nonunnumero:ff"):
         assert auth.check_token(cattivo) is False
+
+
+def test_i_tentativi_sono_azzerabili_dai_test(app_e_auth):
+    """Il dizionario dei tentativi e' esposto apposta: senza, il test del rate
+    limit contaminerebbe quelli successivi."""
+    app, auth = app_e_auth
+    c = TestClient(app)
+    for _ in range(6):
+        c.post("/api/auth/login", json={"password": "no"})
+    auth.tentativi.clear()
+    assert c.post("/api/auth/login", json={"password": "segreta-per-i-test"}).status_code == 200

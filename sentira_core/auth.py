@@ -50,6 +50,10 @@ class Auth:
     make_token: object
     check_token: object
     abilitata: object
+    # Il dizionario dei tentativi per IP, esposto di proposito: i test del rate
+    # limit devono poterlo azzerare fra un caso e l'altro, altrimenti il quinto
+    # test fallisce per colpa del quarto.
+    tentativi: dict
 
 
 def crea_auth(*, nome_cookie: str, giorni: int, ambito: str) -> Auth:
@@ -137,4 +141,4 @@ def crea_auth(*, nome_cookie: str, giorni: int, ambito: str) -> Auth:
         return {"autenticato": check_token(request.cookies.get(nome_cookie))}
 
     return Auth(router=router, require_auth=require_auth, make_token=make_token,
-                check_token=check_token, abilitata=abilitata)
+                check_token=check_token, abilitata=abilitata, tentativi=tentativi)
