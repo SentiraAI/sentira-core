@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sentira-core"
+version = "1.0.0"
+description = "Codice comune ai prodotti Sentira: auth, email, notifiche, SQLite"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Sentira" }]
+dependencies = [
+    "fastapi",
+    "pydantic",
+    "httpx",
+    "jinja2",
+    "markdown",
+    "sqlalchemy",
+]
+
+[project.urls]
+Repository = "https://github.com/SentiraAI/sentira-core"
+
+[tool.setuptools.packages.find]
+include = ["sentira_core*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,24 @@
+name: CI
+
+# Usa la stessa pipeline condivisa dei prodotti Sentira, con una differenza
+# dichiarata: `deploy-enabled: false`. Questa e' una libreria, non ha un
+# container da mettere online.
+#
+# La dichiarazione conta: dalla v2 la pipeline FALLISCE se un push su main non
+# trova i secret di deploy, invece di saltare il job in silenzio. Restare zitti
+# e' esattamente il modo in cui dropbox-agent e' rimasto settimane con la CI
+# verde e nessuna applicazione deployata.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  ci:
+    uses: SentiraAI/infra/.github/workflows/app-ci-deploy.yml@v2
+    with:
+      deploy-enabled: false
+      concurrency-group: ci-sentira-core

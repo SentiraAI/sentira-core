@@ -1,0 +1,4 @@
+# Dipendenze per la CI. Le dipendenze vere del pacchetto stanno in
+# pyproject.toml: qui c'e' solo quello che serve a far girare i test.
+-e .
+pytest
