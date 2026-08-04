@@ -115,7 +115,7 @@ def crea_auth(*, nome_cookie: str, giorni: int, ambito: str) -> Auth:
         if not abilitata():
             log.warning("Login chiamato ma DASHBOARD_PASSWORD non è impostata")
             return {"ok": True, "detail": "auth disattivata (sviluppo)"}
-        ip = request.client.host if request.client else "?"
+        ip = request.headers.get("cf-connecting-ip") or (request.client.host if request.client else "?")
         if _troppi_tentativi(ip):
             raise HTTPException(429, detail="troppi tentativi, riprova tra un minuto")
         # encode() su entrambi: compare_digest con due str solleva TypeError se
