@@ -97,6 +97,32 @@ notify.riepilogo("Lead Hunter", "Buongiorno", {"alta": 3, "media": 7})
 "Concluso senza risultati" è uno stato a sé, non un successo: un job che riceve
 dati e non ne produce ha quasi sempre un problema silenzioso a monte.
 
+## `sentira_core.errorreport`
+
+Notifica su Discord (webhook dedicato, separato da `notify`) i 500 inaspettati
+delle route FastAPI, deduplicati: il primo colpo manda un messaggio, i
+successivi nella stessa finestra aggiornano lo stesso messaggio con un
+contatore invece di spammarne uno nuovo.
+
+```python
+from sentira_core.errorreport import crea_errorreport
+
+report = crea_errorreport(tenant="giallo")
+app.middleware("http")(report.middleware)
+```
+
+Le `HTTPException` (comprese quelle sollevate a mano) non arrivano qui: sono
+controllo di flusso, non bug, e Starlette le gestisce prima che risalgano al
+middleware. Solo le eccezioni non gestite notificano.
+
+Variabili lette: `DISCORD_WEBHOOK_URL_ERRORI` (vuota = solo log, nessun
+invio), `ERROR_REPORT_DRY_RUN=1` (logga sempre, non manda mai — utile in
+test/CI).
+
+Deduplica in memoria (dict), finestra di 15 minuti: persa al riavvio e non
+condivisa fra worker multipli. Basta a non spammare Discord, non è uno
+storico — quello è il lavoro di GlitchTip quando arriverà.
+
 ## `sentira_core.sqlite`
 
 Motore SQLite in WAL configurato per FastAPI. Le tabelle no: quelle sono di ogni
