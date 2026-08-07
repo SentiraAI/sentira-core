@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sentira-core"
-version = "1.0.0"
+version = "1.1.0"
 description = "Codice comune ai prodotti Sentira: auth, email, notifiche, SQLite"
 readme = "README.md"
 # 3.10 e non 3.11: l'immagine mcr.microsoft.com/playwright/python:v1.49.0-jammy,
@@ -19,6 +19,8 @@ dependencies = [
     "jinja2",
     "markdown",
     "sqlalchemy",
+    "PyJWT>=2.8",
+    "cryptography",
 ]
 
 [project.urls]
