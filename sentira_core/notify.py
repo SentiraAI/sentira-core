@@ -48,11 +48,3 @@ def allarme_job(prodotto: str, job: str, stato: str,
         righe.append(f"```{errore}```")
     manda("\n".join(righe))
 
-
-def riepilogo(prodotto: str, titolo: str, conteggi: dict[str, int]) -> None:
-    """Una notifica sola con i totali, invece di N notifiche separate."""
-    totale = sum(conteggi.values())
-    if totale == 0:
-        return
-    dettaglio = ", ".join(f"{v} {k}" for k, v in sorted(conteggi.items()) if v)
-    manda(f"🔔 **[{prodotto}] {titolo}** — {totale} in totale: {dettaglio}.")

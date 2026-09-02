@@ -55,11 +55,6 @@ def test_errore_di_rete_non_propaga(monkeypatch):
     notify.manda("ciao")  # non deve sollevare
 
 
-def test_riepilogo_vuoto_non_manda_nulla(catturate):
-    notify.riepilogo("P", "Buongiorno", {"alta": 0, "bassa": 0})
-    assert catturate == []
-
-
 # ── sqlite ──────────────────────────────────────────────────────────────────
 Base = declarative_base()
 
