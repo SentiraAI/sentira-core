@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sentira-core"
-version = "1.2.0"
-description = "Codice comune ai prodotti Sentira: auth, email, notifiche, SQLite"
+version = "1.3.0"
+description = "Codice comune ai prodotti Sentira: auth, email, notifiche, SQLite, consumo AI"
 readme = "README.md"
 # 3.10 e non 3.11: l'immagine mcr.microsoft.com/playwright/python:v1.49.0-jammy,
 # su cui gira lead-hunter-v2 in produzione, porta Python 3.10.12.

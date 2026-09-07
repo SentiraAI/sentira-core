@@ -1,13 +1,13 @@
 # sentira-core
 
 Il codice comune ai prodotti [Sentira](https://github.com/SentiraAI): auth a
-password singola, invio email, notifiche operative, configurazione SQLite.
+password singola, invio email, notifiche operative, configurazione SQLite, consumo AI.
 
 Qui vive **solo** ciò che era già identico in più progetti e che sbagliare costa.
 Niente logica di business, niente schemi di dati, niente che riguardi un cliente.
 
 ```bash
-pip install "sentira-core @ git+https://github.com/SentiraAI/sentira-core@v1"
+pip install "sentira-core @ https://github.com/SentiraAI/sentira-core/archive/refs/tags/v5.tar.gz"
 ```
 
 ## Perché esiste
@@ -91,7 +91,6 @@ causasse il guasto che deve segnalare.
 from sentira_core import notify
 
 notify.allarme_job("Lead Hunter", "scrape", "completed_empty", entrati=10, usciti=0)
-notify.riepilogo("Lead Hunter", "Buongiorno", {"alta": 3, "media": 7})
 ```
 
 "Concluso senza risultati" è uno stato a sé, non un successo: un job che riceve
@@ -144,6 +143,33 @@ PRAGMA applicati: `journal_mode=WAL` (letture concorrenti durante una scrittura)
 `synchronous=NORMAL`, `foreign_keys=ON` (SQLite non le applica di default, e il
 silenzio è la parte pericolosa), `busy_timeout=5000`.
 
+## `sentira_core.ai_usage`
+
+Formula USD con input cached, registrazione non bloccante e wrapper
+`chat.completions.create`, estratti da Mauro e Rossella. Nessuna dipendenza
+OpenAI aggiunta: il client viene passato dal chiamante.
+
+```python
+from functools import partial
+from sentira_core import ai_usage as condiviso
+from . import db
+
+PRICING = condiviso.PRICING
+
+def _cost_usd(model, prompt_tokens, cached_tokens, completion_tokens):
+    tariffa = PRICING.get(model, (0.25, 0.025, 2.00))
+    return condiviso.cost_usd(tariffa, prompt_tokens, cached_tokens, completion_tokens)
+
+record = partial(condiviso.record, db=db, cost_usd=_cost_usd)
+complete = partial(condiviso.complete, record=record)
+```
+
+`db` espone `get_session()` e il modello `AiUsage` dell'applicazione.
+I binding `partial` passano le dipendenze senza configurazione globale del core.
+Schema, timestamp, fallback tariffario, riepiloghi HTTP e conversione EUR
+restano nel consumer. `PRICING` contiene solo le tre tariffe identiche nei
+due progetti; eventuali estensioni vanno in una copia locale.
+
 ## Sviluppo
 
 ```bash
@@ -156,8 +182,13 @@ da una suite di test significa, prima o poi, mandarla a un cliente.
 
 ## Versioni
 
-I progetti puntano a un tag (`@v1`), mai a `@main`: una modifica qui non deve
+I progetti puntano a un tarball di tag (`v5`), mai a `main`: una modifica qui non deve
 arrivare in produzione su tutti i clienti nello stesso istante.
+
+La numerazione dei tag di distribuzione è distinta dalla versione Python:
+`v4` corrisponde a `1.2.0`, `v5` a `1.3.0`.
+Confronto, criteri di ammissione e passaggi di aggiornamento:
+[migrazione v5](docs/migrazione-v5.md).
 
 ## Licenza
 
