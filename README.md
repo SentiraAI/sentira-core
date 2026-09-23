@@ -156,9 +156,9 @@ from . import db
 
 PRICING = condiviso.PRICING
 
-def _cost_usd(model, prompt_tokens, cached_tokens, completion_tokens):
-    tariffa = PRICING.get(model, (0.25, 0.025, 2.00))
-    return condiviso.cost_usd(tariffa, prompt_tokens, cached_tokens, completion_tokens)
+def _cost_usd(model, prompt_tokens, cached_tokens, completion_tokens, cache_write_tokens=0):
+    tariffa = PRICING.get(model, (0.25, 0.025, 0.0, 2.00))
+    return condiviso.cost_usd(tariffa, prompt_tokens, cached_tokens, completion_tokens, cache_write_tokens)
 
 record = partial(condiviso.record, db=db, cost_usd=_cost_usd)
 complete = partial(condiviso.complete, record=record)
@@ -167,8 +167,9 @@ complete = partial(condiviso.complete, record=record)
 `db` espone `get_session()` e il modello `AiUsage` dell'applicazione.
 I binding `partial` passano le dipendenze senza configurazione globale del core.
 Schema, timestamp, fallback tariffario, riepiloghi HTTP e conversione EUR
-restano nel consumer. `PRICING` contiene solo le tre tariffe identiche nei
-due progetti; eventuali estensioni vanno in una copia locale.
+restano nel consumer. `PRICING` contiene solo le tariffe (input, cached,
+cache writes, output) identiche nei due progetti; eventuali estensioni vanno
+in una copia locale.
 
 ## Sviluppo
 

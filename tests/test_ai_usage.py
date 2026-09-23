@@ -32,8 +32,8 @@ def db():
     engine.dispose()
 
 
-def _cost_usd(model, prompt, cached, completion):
-    return ai_usage.cost_usd(ai_usage.PRICING[model], prompt, cached, completion)
+def _cost_usd(model, prompt, cached, completion, cache_write=0):
+    return ai_usage.cost_usd(ai_usage.PRICING[model], prompt, cached, completion, cache_write)
 
 
 def test_cache_scontata_e_usage_assente(db):
