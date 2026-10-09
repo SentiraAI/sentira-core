@@ -11,6 +11,9 @@ esiste risponde 404 JSON, non la pagina 404: il frontend si aspetta JSON.
 Path traversal: `/%2e%2e/data/app.db` arriva qui come `../data/app.db`. Ogni
 percorso si risolve e deve restare dentro la cartella, altrimenti è 404. In
 lead-hunter mancava: col container giusto si scaricava il database.
+
+    from sentira_core.web import proteggi
+    proteggi(app)             # subito dopo FastAPI(...): header + CSRF
 """
 
 from __future__ import annotations
@@ -19,11 +22,51 @@ import logging
 import os
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 log = logging.getLogger("web")
+
+# Next.js (export statico) mette script inline per l'idratazione: 'unsafe-inline'
+# serve, il resto resta chiuso. Nessuna risorsa esterna.
+CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; "
+       "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; "
+       "connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; "
+       "frame-ancestors 'none'")
+_METODI_SICURI = {"GET", "HEAD", "OPTIONS"}
+
+
+def proteggi(app: FastAPI, csp: str = CSP) -> None:
+    """Header di sicurezza su ogni risposta, e CSRF via Fetch Metadata.
+
+    Il cookie di sessione è SameSite=Lax: ferma i siti esterni, non gli altri
+    sottodomini di sentira.tech (stesso "site"). Un browser dichiara sempre da
+    dove parte la richiesta in Sec-Fetch-Site: una scrittura che non nasce da
+    questa stessa origine si rifiuta. Client senza l'header (CLI, test, webhook)
+    non sono browser e non portano il cookie di qualcun altro."""
+    header = {
+        "Content-Security-Policy": csp,
+        "Strict-Transport-Security": "max-age=31536000",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Referrer-Policy": "same-origin",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+        "Cross-Origin-Opener-Policy": "same-origin",
+    }
+
+    @app.middleware("http")
+    async def _sicurezza(request: Request, call_next):
+        if (request.method not in _METODI_SICURI
+                and request.headers.get("sec-fetch-site", "same-origin") not in ("same-origin", "none")):
+            risposta = JSONResponse({"detail": "richiesta da un'altra origine rifiutata"}, 403)
+        else:
+            risposta = await call_next(request)
+        for nome, valore in header.items():
+            risposta.headers.setdefault(nome, valore)
+        if request.url.path.startswith("/api/"):
+            risposta.headers.setdefault("Cache-Control", "no-store")  # dati dei clienti
+        return risposta
 
 
 def _dentro(radice: Path, relativo: str) -> Path | None:

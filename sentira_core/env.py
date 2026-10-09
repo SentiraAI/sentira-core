@@ -44,3 +44,7 @@ def configura_logging() -> None:
     """`logging.basicConfig` col livello di LOG_LEVEL (default INFO)."""
     livello = valore("LOG_LEVEL", "INFO").upper()
     logging.basicConfig(level=livello if isinstance(logging.getLevelName(livello), int) else "INFO")
+    # httpx e httpcore loggano a INFO l'URL intero di ogni richiesta: chiavi in
+    # query string e token nei path dei webhook finirebbero nei log di Coolify.
+    for nome in ("httpx", "httpcore"):
+        logging.getLogger(nome).setLevel(logging.WARNING)

@@ -34,7 +34,8 @@ from typing import Callable
 
 import httpx
 import markdown as _md
-from jinja2 import Environment, StrictUndefined, TemplateError
+from jinja2 import StrictUndefined, TemplateError
+from jinja2.sandbox import SandboxedEnvironment
 
 from .tempo import oggi_roma
 
@@ -42,7 +43,9 @@ log = logging.getLogger("emailer")
 
 RESEND_URL = "https://api.resend.com/emails"
 
-_env = Environment(undefined=StrictUndefined, autoescape=False)
+# Sandbox: i template li scrive chi usa la dashboard, e un template Jinja
+# non in sandbox arriva agli attributi interni di Python (e da lì al processo).
+_env = SandboxedEnvironment(undefined=StrictUndefined, autoescape=False)
 
 # (chiave, incrementa) -> conteggio attuale
 _contatore: Callable[[str, bool], int] | None = None
@@ -89,8 +92,13 @@ def rendi(testo: str, variabili: dict) -> str:
 
 
 def _testo_in_html(testo: str) -> str:
-    """Testo o markdown → HTML leggibile, con stili sicuri per le email."""
-    interno = _md.markdown(testo, extensions=["extra", "nl2br"], output_format="html5")
+    """Testo o markdown → HTML leggibile, con stili sicuri per le email.
+
+    L'HTML grezzo nel testo si neutralizza prima del markdown: il testo arriva
+    anche dall'AI e da dati esterni, e un tag passato così com'è finirebbe vivo
+    nell'email (link nascosti, immagini traccianti). Basta `<`: senza, nessun
+    tag si apre, e `>` resta libero per le citazioni markdown."""
+    interno = _md.markdown(testo.replace("<", "&lt;"), extensions=["extra", "nl2br"], output_format="html5")
     return ('<div style="font-family:system-ui,Arial,sans-serif;font-size:15px;'
             'line-height:1.5;color:#1a1a1a;max-width:600px">'
             f'{interno}</div>')
@@ -188,3 +196,4 @@ def render_template(testo: str, variabili: dict) -> str:
 
 
 _text_to_html = _testo_in_html
+testo_in_html = _testo_in_html

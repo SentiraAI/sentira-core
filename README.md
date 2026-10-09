@@ -209,6 +209,11 @@ monta_frontend(app)                  # STATIC_DIR, default ./static
 esiste risponde 404 JSON. Ogni percorso deve restare dentro la cartella: senza
 quel controllo `/%2e%2e/data/app.db` scaricava il database.
 
+`proteggi(app)`, subito dopo `FastAPI(...)`, mette su ogni risposta gli header
+di sicurezza (CSP, HSTS, nosniff, niente iframe, COOP, `no-store` sulle `/api`)
+e rifiuta le scritture che un browser dichiara partite da un'altra origine
+(`Sec-Fetch-Site`): SameSite=Lax del cookie non ferma gli altri `*.sentira.tech`.
+
 ## `sentira_core.scheduler`
 
 Un solo scheduler APScheduler per processo, sul fuso di Roma, spento con
@@ -416,7 +421,9 @@ arrivare in produzione su tutti i clienti nello stesso istante.
 La numerazione dei tag di distribuzione è distinta dalla versione Python:
 `v4` corrisponde a `1.2.0`, `v5` a `1.3.0`, `v7` a `1.4.0` (chat), `v8` a `1.5.0`
 (piattaforma: web, scheduler, tempo, env, testing, allinea_schema; frontend condiviso), `v9` a `1.6.0`
-(risposte strutturate dell'AI, serie, rete).
+(risposte strutturate dell'AI, serie, rete), `v10` a `1.7.0` (sicurezza: `proteggi`,
+template email in sandbox, HTML grezzo neutralizzato, limite globale ai login,
+algoritmo JWT fisso, niente URL con segreti nei log, niente menzioni Discord).
 Confronto, criteri di ammissione e passaggi di aggiornamento:
 [migrazione v5](docs/migrazione-v5.md).
 

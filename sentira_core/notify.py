@@ -18,6 +18,9 @@ import httpx
 log = logging.getLogger("notify")
 
 LIMITE_DISCORD = 1900  # il limite vero è 2000, teniamo margine per il markdown
+# Nessuna menzione attiva: nel testo possono finire dati esterni, e un
+# "@everyone" lì dentro non deve suonare a tutto il canale.
+NESSUNA_MENZIONE = {"parse": []}
 
 
 def manda(contenuto: str) -> None:
@@ -26,7 +29,8 @@ def manda(contenuto: str) -> None:
         log.info("Discord disabilitato (DISCORD_WEBHOOK_URL mancante): %s", contenuto)
         return
     try:
-        httpx.post(url, json={"content": contenuto[:LIMITE_DISCORD]}, timeout=10)
+        httpx.post(url, json={"content": contenuto[:LIMITE_DISCORD],
+                              "allowed_mentions": NESSUNA_MENZIONE}, timeout=10)
     except httpx.HTTPError as e:
         log.warning("invio Discord fallito: %s", e)
 

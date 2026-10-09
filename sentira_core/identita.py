@@ -144,9 +144,9 @@ def crea_identita(
         key = chiavi.get(header.get("kid"))
         if key is None:
             raise KeyError("kid")  # segnala: rifetch (rotazione)
-        alg = header.get("alg", "RS256")
+        # L'algoritmo è fisso: preso dall'header lo sceglierebbe chi firma il token.
         opzioni = {} if aud else {"verify_aud": False}
-        return jwt.decode(token, key, algorithms=[alg], audience=aud,
+        return jwt.decode(token, key, algorithms=["RS256"], audience=aud,
                           issuer=iss, options=opzioni)
 
     def verifica_token(token: Optional[str]) -> str:

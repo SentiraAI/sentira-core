@@ -36,7 +36,9 @@ from pydantic import BaseModel
 log = logging.getLogger("auth")
 
 TENTATIVI_MAX = 5      # per IP
+TENTATIVI_MAX_TOTALI = 30  # tutti gli IP insieme: chi ruota IP non moltiplica i tentativi
 FINESTRA_SECONDI = 60
+_TUTTI = "*"
 
 
 class LoginIn(BaseModel):
@@ -103,11 +105,16 @@ def crea_auth(*, nome_cookie: str, giorni: int, ambito: str) -> Auth:
 
     def _troppi_tentativi(ip: str) -> bool:
         ora = time.time()
-        finestra = [t for t in tentativi.get(ip, []) if ora - t < FINESTRA_SECONDI]
-        tentativi[ip] = finestra
-        if len(finestra) >= TENTATIVI_MAX:
+        # Via gli IP fermi da più di una finestra: il dizionario non cresce per sempre.
+        for vecchio in [k for k, v in tentativi.items() if not v or ora - v[-1] >= FINESTRA_SECONDI]:
+            del tentativi[vecchio]
+        finestre = {k: [t for t in tentativi.get(k, []) if ora - t < FINESTRA_SECONDI]
+                    for k in (ip, _TUTTI)}
+        tentativi.update(finestre)
+        if len(finestre[ip]) >= TENTATIVI_MAX or len(finestre[_TUTTI]) >= TENTATIVI_MAX_TOTALI:
             return True
-        finestra.append(ora)
+        finestre[ip].append(ora)
+        finestre[_TUTTI].append(ora)
         return False
 
     @router.post("/api/auth/login")

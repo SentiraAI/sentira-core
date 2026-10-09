@@ -31,6 +31,8 @@ from dataclasses import dataclass
 import httpx
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from .notify import NESSUNA_MENZIONE
+
 log = logging.getLogger("errorreport")
 
 FINESTRA_SECONDI = 15 * 60
@@ -76,7 +78,7 @@ class ErrorReport:
             return None
         try:
             r = httpx.post(f"{self.webhook_url}?wait=true",
-                           json={"content": contenuto}, timeout=10)
+                           json={"content": contenuto, "allowed_mentions": NESSUNA_MENZIONE}, timeout=10)
             return r.json().get("id")
         except httpx.HTTPError as e:
             log.warning("invio errorreport fallito: %s", e)
@@ -87,7 +89,7 @@ class ErrorReport:
             return
         try:
             httpx.patch(f"{self.webhook_url}/messages/{message_id}",
-                       json={"content": contenuto}, timeout=10)
+                       json={"content": contenuto, "allowed_mentions": NESSUNA_MENZIONE}, timeout=10)
         except httpx.HTTPError as e:
             log.warning("aggiornamento errorreport fallito: %s", e)
 
