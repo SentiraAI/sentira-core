@@ -1,0 +1,23 @@
+{
+  "name": "sentira-core",
+  "version": "1.4.0",
+  "private": true,
+  "description": "Componenti React comuni ai frontend Sentira. Sorgenti TSX: l'app li compila con transpilePackages.",
+  "license": "MIT",
+  "exports": {
+    "./chat": "./web/chat/index.ts"
+  },
+  "files": [
+    "web"
+  ],
+  "peerDependencies": {
+    "lucide-react": ">=1",
+    "motion": ">=12",
+    "react": ">=19",
+    "react-markdown": ">=10",
+    "recharts": ">=3",
+    "remark-breaks": ">=4",
+    "remark-gfm": ">=4",
+    "sonner": ">=2"
+  }
+}

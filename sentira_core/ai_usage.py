@@ -37,6 +37,14 @@ def cost_usd(pricing: tuple[float, float, float, float], prompt_tokens: int,
             + (completion_tokens / 1_000_000) * usd_out)
 
 
+def reasoning_kwargs(model: str, effort: str) -> dict:
+    """I modelli gpt-5+/gpt-6+ sono reasoning model: accettano reasoning_effort,
+    i precedenti (gpt-4o*) lo rifiutano con un 400.
+    ponytail: prefissi elencati a mano (gpt-5, gpt-6), estendere alla prossima
+    generazione quando arriva."""
+    return {"reasoning_effort": effort} if model.startswith(("gpt-5", "gpt-6")) else {}
+
+
 def record(feature: str, model: str, usage, *, db, cost_usd) -> None:
     """Registra tramite db.get_session/db.AiUsage e il tariffario del consumer."""
     if usage is None:

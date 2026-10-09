@@ -8,10 +8,11 @@ niente che riguardi un cliente specifico.
     sentira_core.identita  identita' via Cloudflare Access: JWT + ruolo
     sentira_core.auth      auth a password singola con cookie firmato HMAC
     sentira_core.ai_usage  costo token e registrazione consumo non bloccante
+    sentira_core.chat      chat sui dati: motore SSE, tool, grafici, regole del prompt
 
 La regola per aggiungere qualcosa qui: **deve già esistere identico in almeno
 due progetti**. Codice messo qui "perché prima o poi servirà" diventa un vincolo
 per tutti senza essere utile a nessuno.
 """
 
-__version__ = "1.3.0"
+__version__ = "1.4.0"

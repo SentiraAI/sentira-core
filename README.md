@@ -1,13 +1,15 @@
 # sentira-core
 
 Il codice comune ai prodotti [Sentira](https://github.com/SentiraAI): auth a
-password singola, invio email, notifiche operative, configurazione SQLite, consumo AI.
+password singola, invio email, notifiche operative, configurazione SQLite, consumo AI,
+chat sui dati del cliente (backend Python + pagina React).
 
 Qui vive **solo** ciò che era già identico in più progetti e che sbagliare costa.
 Niente logica di business, niente schemi di dati, niente che riguardi un cliente.
 
 ```bash
-pip install "sentira-core @ https://github.com/SentiraAI/sentira-core/archive/refs/tags/v5.tar.gz"
+pip install "sentira-core @ https://github.com/SentiraAI/sentira-core/archive/refs/tags/v7.tar.gz"
+npm install https://github.com/SentiraAI/sentira-core/archive/refs/tags/v7.tar.gz   # solo per la chat
 ```
 
 ## Perché esiste
@@ -171,6 +173,76 @@ restano nel consumer. `PRICING` contiene solo le tariffe (input, cached,
 cache writes, output) identiche nei due progetti; eventuali estensioni vanno
 in una copia locale.
 
+## `sentira_core.chat`
+
+La chat sui dati del cliente, uguale in ogni prodotto: agent loop OpenAI in
+streaming SSE, validazione dei tool contro il loro schema, confine dei dati non
+fidati, grafici costruiti dal database, storico, sessioni, consumo AI, e le regole
+del prompt che valgono per tutti (sicurezza, verità dei numeri, formato, grafici,
+domande di follow-up). L'applicazione porta **solo** i suoi strumenti e la parte
+di prompt che parla del suo lavoro.
+
+```python
+from sentira_core import chat
+from . import ai_usage, db
+
+motore = chat.crea_chat(
+    db=db, record=ai_usage.record,
+    prompt=chat.prompt_sistema(
+        identita="Ti chiami Sentira AI. Lavori per …", ambito="sul lavoro di …: …",
+        rifiuto="Posso aiutarti solo su …", azioni="get_x consulta il DB; …",
+        fonti="## Fonti\n- …: tool get_x.", dominio="## Regole di business\n- …"),
+    strumenti=[chat.Strumento("get_x", "Cosa restituisce…", esegui=_get_x,
+                              parametri={"testo": {"type": "string"}},
+                              etichetta="Cerco nelle x…")],
+    grafici={"x_per_mese": "X al mese"}, costruisci_grafico=_grafico,
+    suggerimenti=["Quante x questo mese?"], titolo="Interroga …", descrizione="…")
+app.include_router(motore.router, dependencies=protected)
+```
+
+Nel `db.py` dell'app: `ChatSession, ChatMessage = chat.modelli(Base)`, le due
+tabelle sono le stesse ovunque. `esegui(args)` restituisce testo o un oggetto
+JSON; `chat.grafico(titolo, dati, forma=…, serie=…, nota=…)` costruisce la
+specifica che il frontend disegna. I numeri dei grafici li sceglie il database,
+il modello sceglie solo **quale** grafico: un blocco grafico scritto dal modello
+viene tolto dalla risposta.
+
+Route: `POST /api/chat` (SSE), `GET /api/chat/config` (titolo, descrizione,
+domande d'esempio), `GET|DELETE /api/chat/sessions`,
+`GET|PATCH|DELETE /api/chat/sessions/{id}`. `motore.turno(messaggio)` fa girare
+un turno senza HTTP (lo usa il confronto modelli). Il modello è
+`OPENAI_MODEL_REASONING` (default `gpt-6-luna`) se l'app non passa `modello=`.
+
+### La pagina (`web/chat`)
+
+Stesso tag, lato frontend: la pagina completa (sessioni, conversazione, grafici)
+come sorgente TSX, senza niente di specifico del cliente: i testi arrivano da
+`/api/chat/config`.
+
+```tsx
+import { Chat } from "sentira-core/chat";
+<Chat chiaveSessione="nomeprodotto_session_id" testata={<SidebarTrigger />} />
+```
+
+Nell'app, una volta: `transpilePackages: ["sentira-core"]` in `next.config.ts` e
+`@source "../../node_modules/sentira-core/web";` in `globals.css` (Tailwind non
+guarda in `node_modules`). Dipendenze attese dall'app: `react-markdown`,
+`remark-gfm`, `remark-breaks`, `recharts`, `motion`, `lucide-react`, `sonner`.
+La grafica usa i token e le classi del tema Sentira (`accent-rail`, `led`,
+`tick-corners`…): un'app senza perde le decorazioni, non le funzioni.
+
+### Cambiare la chat in tutti i prodotti
+
+1. Modifica qui (motore o `prompt_sistema` in Python, `web/chat` per la pagina),
+   test con `.venv/bin/python -m pytest tests/ -q`.
+2. Nuovo tag (`v8`, …) e versione in `pyproject.toml`, `package.json`, `__init__.py`.
+3. In ogni app: il tag in `requirements.txt` e
+   `npm install https://github.com/SentiraAI/sentira-core/archive/refs/tags/v8.tar.gz`
+   in `frontend/`, poi test, build e deploy come sempre.
+
+Le regole di business di un cliente restano nel suo `src/chat.py` (o nei file
+`prompts/` di Lead Hunter): qui va solo ciò che vale per tutti.
+
 ## Sviluppo
 
 ```bash
@@ -183,11 +255,11 @@ da una suite di test significa, prima o poi, mandarla a un cliente.
 
 ## Versioni
 
-I progetti puntano a un tarball di tag (`v5`), mai a `main`: una modifica qui non deve
+I progetti puntano a un tarball di tag (`v7`), mai a `main`: una modifica qui non deve
 arrivare in produzione su tutti i clienti nello stesso istante.
 
 La numerazione dei tag di distribuzione è distinta dalla versione Python:
-`v4` corrisponde a `1.2.0`, `v5` a `1.3.0`.
+`v4` corrisponde a `1.2.0`, `v5` a `1.3.0`, `v7` a `1.4.0` (chat).
 Confronto, criteri di ammissione e passaggi di aggiornamento:
 [migrazione v5](docs/migrazione-v5.md).
 
