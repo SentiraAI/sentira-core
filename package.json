@@ -1,6 +1,6 @@
 {
   "name": "sentira-core",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "private": true,
   "description": "Componenti React comuni ai frontend Sentira. Sorgenti TSX: l'app li compila con transpilePackages.",
   "license": "MIT",

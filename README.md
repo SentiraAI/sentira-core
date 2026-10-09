@@ -176,6 +176,25 @@ Il **modello di default** di tutti i prodotti è `ai_usage.MODELLO_DEFAULT`, e s
 legge con `ai_usage.modello("OPENAI_MODEL_REASONING")` (o un'altra variabile):
 cambiare modello a tutti è cambiare quella costante e spostare il pin.
 
+**Risposte strutturate.** Due forme, ognuna con il suo binding `partial` come
+`complete`:
+
+```python
+chiama_tool = partial(condiviso.chiama_tool, record=record)
+
+args = chiama_tool(client, "extract", model=model, tool=_TOOL, messages=[...],
+                   max_completion_tokens=3000)       # dict, o None se la tool non è stata chiamata
+dati = condiviso.leggi_json(complete(client, "insights", model=model,
+                            response_format={"type": "json_object"}, ...))
+```
+
+`chiama_tool` forza la tool e mette da sé `reasoning_effort="none"`: con i
+modelli gpt-5.6/gpt-6 le function tool funzionano solo così, e ometterlo dà un
+400 a ogni chiamata (è successo due volte, in due app). Se un modello futuro
+rifiuta il parametro, riprova una volta senza. Un JSON malformato o troncato
+solleva `ValueError`, come `leggi_json` quando la risposta non contiene un
+oggetto. Budget, effort delle altre chiamate e prompt restano nell'app.
+
 ## `sentira_core.web`
 
 Serve l'export statico di Next.js dalla stessa app FastAPI, da montare **per
@@ -219,6 +238,38 @@ nelle colonne `DateTime`.
 commento in coda e le virgolette dei `.env` scritti a mano (`ORA=8  # ora`
 faceva crashare `int()` all'avvio); il vuoto vale come assente.
 `env.configura_logging()` usa `LOG_LEVEL`. Non per i segreti.
+
+## `sentira_core.serie`
+
+Il calendario delle dashboard, con i periodi vuoti a zero:
+
+```python
+from sentira_core import serie
+serie.periodi(da, a, "settimana")            # [lunedì, lunedì, …], vuoti compresi
+serie.per_periodo(date_, da, a, "mese")     # {primo del mese: n}, in ordine
+serie.inizio(d, "settimana")                 # il lunedì di d
+serie.conta(valori, top=8)                   # [{"nome", "n"}], la forma di chat.grafico
+```
+
+Passi: `giorno`, `settimana` (dal lunedì), `mese` (dal primo). Accetta `date` e
+`datetime`. Query, etichette e forma dei punti restano nell'app.
+
+## `sentira_core.rete`
+
+Per scaricare da un URL che arriva da fuori (un banner, una landing, un link in
+una email):
+
+```python
+from sentira_core import rete
+p = rete.scarica(url, timeout=15, max_byte=5_000_000)   # p.url, p.tipo, p.contenuto, p.testo
+rete.controlla(url)                                     # ValueError se non è pubblico
+```
+
+Ogni redirect è controllato **prima** di partire: un link verso
+`169.254.169.254`, `127.0.0.1` o la rete dei container solleva `ValueError`
+(SSRF). Il corpo si ferma a `max_byte`. Errori di rete e 4xx/5xx sono
+`httpx.HTTPError`. Ridurre l'HTML a testo resta nell'app (BeautifulSoup non è
+una dipendenza del core).
 
 ## `sentira_core.testing`
 
@@ -287,9 +338,9 @@ Le classi della grafica (`accent-rail`, `led`, `tick-corners`…) stanno in
 
 1. Modifica qui (motore o `prompt_sistema` in Python, `web/chat` per la pagina),
    test con `.venv/bin/python -m pytest tests/ -q`.
-2. Nuovo tag (`v8`, …) e versione in `pyproject.toml`, `package.json`, `__init__.py`.
+2. Nuovo tag (`v9`, …) e versione in `pyproject.toml`, `package.json`, `__init__.py`.
 3. In ogni app: il tag in `requirements.txt` e
-   `npm install https://github.com/SentiraAI/sentira-core/archive/refs/tags/v8.tar.gz`
+   `npm install https://github.com/SentiraAI/sentira-core/archive/refs/tags/v9.tar.gz`
    in `frontend/`, poi test, build e deploy come sempre.
 
 Le regole di business di un cliente restano nel suo `src/chat.py` (o nei file
@@ -359,12 +410,13 @@ da una suite di test significa, prima o poi, mandarla a un cliente.
 
 ## Versioni
 
-I progetti puntano a un tarball di tag (`v8`), mai a `main`: una modifica qui non deve
+I progetti puntano a un tarball di tag (`v9`), mai a `main`: una modifica qui non deve
 arrivare in produzione su tutti i clienti nello stesso istante.
 
 La numerazione dei tag di distribuzione è distinta dalla versione Python:
 `v4` corrisponde a `1.2.0`, `v5` a `1.3.0`, `v7` a `1.4.0` (chat), `v8` a `1.5.0`
-(piattaforma: web, scheduler, tempo, env, testing, allinea_schema; frontend condiviso).
+(piattaforma: web, scheduler, tempo, env, testing, allinea_schema; frontend condiviso), `v9` a `1.6.0`
+(risposte strutturate dell'AI, serie, rete).
 Confronto, criteri di ammissione e passaggi di aggiornamento:
 [migrazione v5](docs/migrazione-v5.md).
 

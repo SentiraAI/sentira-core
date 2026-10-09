@@ -4,6 +4,7 @@ Schema DB, scelta della tariffa e riepiloghi restano nelle applicazioni.
 Il tracking non deve mai interrompere una chiamata AI riuscita.
 """
 
+import json
 import logging
 
 from . import env
@@ -85,3 +86,52 @@ def complete(client, feature: str, *, record, **kwargs):
     resp = client.chat.completions.create(**kwargs)
     record(feature, kwargs.get("model", ""), getattr(resp, "usage", None))
     return resp
+
+
+def chiama_tool(client, feature: str, *, record, tool: dict, **kwargs) -> dict | None:
+    """Risposta strutturata con una tool forzata: il modello DEVE chiamare `tool`
+    (forma OpenAI, {"type": "function", "function": {...}}). Restituisce gli
+    argomenti, None se non l'ha chiamata; ValueError se il JSON è malformato o
+    troncato. Gli errori della chiamata risalgono, come in `complete`.
+
+    reasoning_effort "none" è obbligatorio: gpt-5.6-luna e gpt-6-luna su
+    /v1/chat/completions accettano le function tool solo così, e il loro default
+    non lo è; senza, ogni chiamata dà 400 "Function tools with reasoning_effort
+    are not supported". Se un modello futuro rifiuta il parametro in un'altra
+    forma, un solo nuovo tentativo senza: adattarsi alla risposta dell'API
+    invecchia meglio di un elenco di modelli."""
+    argomenti = dict(kwargs, tools=[tool], tool_choice={
+        "type": "function", "function": {"name": tool["function"]["name"]}})
+    argomenti.update(reasoning_kwargs(kwargs.get("model", ""), "none"))
+    try:
+        resp = complete(client, feature, record=record, **argomenti)
+    except Exception as e:
+        if (getattr(e, "status_code", None) != 400 or "reasoning_effort" not in str(e)
+                or "reasoning_effort" not in argomenti):
+            raise
+        log.info("%s: %s non accetta reasoning_effort con le tool, riprovo senza",
+                 feature, kwargs.get("model"))
+        argomenti.pop("reasoning_effort")
+        resp = complete(client, feature, record=record, **argomenti)
+    chiamate = resp.choices[0].message.tool_calls
+    if not chiamate:
+        return None
+    dati = json.loads(chiamate[0].function.arguments)
+    if not isinstance(dati, dict):
+        raise ValueError("argomenti della tool non sono un oggetto JSON")
+    return dati
+
+
+def leggi_json(resp) -> dict:
+    """L'oggetto JSON di una risposta con response_format json_object.
+
+    Tollera i recinti markdown e il testo attorno (si prende dalla prima `{`
+    all'ultima `}`); ValueError se non c'è un oggetto valido."""
+    testo = (resp.choices[0].message.content or "").strip()
+    try:
+        dati = json.loads(testo[testo.find("{"): testo.rfind("}") + 1])
+    except ValueError:
+        raise ValueError(f"risposta AI non in JSON: {testo[:200]}") from None
+    if not isinstance(dati, dict):
+        raise ValueError(f"risposta AI non in JSON: {testo[:200]}")
+    return dati
