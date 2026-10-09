@@ -9,7 +9,7 @@ Niente logica di business, niente schemi di dati, niente che riguardi un cliente
 
 ```bash
 pip install "sentira-core @ https://github.com/SentiraAI/sentira-core/archive/refs/tags/v7.tar.gz"
-npm install https://github.com/SentiraAI/sentira-core/archive/refs/tags/v7.tar.gz   # solo per la chat
+npm install https://github.com/SentiraAI/sentira-core/archive/refs/tags/v7.tar.gz   # frontend (web/)
 ```
 
 ## Perché esiste
@@ -59,21 +59,14 @@ emailer.invia("cliente@esempio.it", "Oggetto", testo="**Ciao**",
 ```
 
 Il **contatore del cap** va iniettato, perché dove persisterlo dipende dallo
-schema dell'applicazione:
+schema dell'applicazione. Con una tabella chiave/valore (colonne `key`, `value`):
 
 ```python
-def _contatore(chiave, incrementa):
-    with db.get_session() as s:
-        riga = s.get(db.SyncState, chiave)
-        attuale = int(riga.value) if riga and riga.value else 0
-        if incrementa:
-            if riga: riga.value = str(attuale + 1)
-            else:    s.add(db.SyncState(key=chiave, value="1"))
-            s.commit()
-        return attuale
-
-emailer.usa_contatore(_contatore)
+emailer.usa_contatore_kv(db.get_session, db.SyncState)
 ```
+
+Altrimenti `emailer.usa_contatore(fn)`, con `fn(chiave, incrementa) -> conteggio`.
+Il giorno del cap è quello di Roma: si azzera a mezzanotte italiana, non UTC.
 
 Senza contatore il cap non viene applicato, e il modulo lo dice nei log una volta
 sola: meglio inviare senza cap che non inviare per una dipendenza mancante.
@@ -135,7 +128,13 @@ from sentira_core.sqlite import crea_motore, crea_sessione
 engine = crea_motore()               # dentro DATA_DIR, default ./data
 Session = crea_sessione(engine)
 Base.metadata.create_all(engine)
+allinea_schema(engine, Base)         # colonne e indici nuovi su un DB esistente
 ```
+
+`allinea_schema` è tutta la migrazione senza Alembic: confronta il modello col
+DB e aggiunge le colonne e gli indici mancanti. Il default scalare del modello
+diventa il `DEFAULT` SQL (le righe vecchie non restano NULL); una colonna NOT
+NULL senza default resta fuori con un warning, perché SQLite non la sa aggiungere.
 
 `DATA_DIR` in produzione deve puntare al volume persistente (`/app/data` su
 Coolify). Se punta altrove, ogni redeploy ricrea il container e **il database
@@ -172,6 +171,61 @@ Schema, timestamp, fallback tariffario, riepiloghi HTTP e conversione EUR
 restano nel consumer. `PRICING` contiene solo le tariffe (input, cached,
 cache writes, output) identiche nei due progetti; eventuali estensioni vanno
 in una copia locale.
+
+Il **modello di default** di tutti i prodotti è `ai_usage.MODELLO_DEFAULT`, e si
+legge con `ai_usage.modello("OPENAI_MODEL_REASONING")` (o un'altra variabile):
+cambiare modello a tutti è cambiare quella costante e spostare il pin.
+
+## `sentira_core.web`
+
+Serve l'export statico di Next.js dalla stessa app FastAPI, da montare **per
+ultimo** (è un catch-all):
+
+```python
+from sentira_core.web import monta_frontend
+monta_frontend(app)                  # STATIC_DIR, default ./static
+```
+
+`/x` cerca `x`, `x.html`, `x/index.html`, poi `404.html`. Una `/api/...` che non
+esiste risponde 404 JSON. Ogni percorso deve restare dentro la cartella: senza
+quel controllo `/%2e%2e/data/app.db` scaricava il database.
+
+## `sentira_core.scheduler`
+
+Un solo scheduler APScheduler per processo, sul fuso di Roma, spento con
+`DISABLE_SCHEDULER=1`. L'app registra i job, il resto è qui:
+
+```python
+from sentira_core import scheduler
+
+def _registra(s):
+    s.add_job(scheduler.protetto("scrape", scrape.run), CronTrigger(hour=6), id="scrape")
+
+scheduler.avvia(_registra, report=report)   # nel lifespan; report = crea_errorreport(...)
+scheduler.ferma()
+scheduler.prossime("automation-")           # {id: prossima esecuzione ISO}
+```
+
+`protetto(nome, fn)`: una sola esecuzione alla volta per nome, eccezione
+loggata e mandata a errorreport, mai propagata allo scheduler.
+
+## `sentira_core.tempo` e `sentira_core.env`
+
+`tempo.oggi_roma()` è il giorno di Roma (il container gira in UTC: `date.today()`
+cambiava giorno alle 2 di notte), `tempo.adesso_utc()` l'istante da scrivere
+nelle colonne `DateTime`.
+
+`env.valore/flag/intero(nome, default)` leggono una variabile togliendo il
+commento in coda e le virgolette dei `.env` scritti a mano (`ORA=8  # ora`
+faceva crashare `int()` all'avvio); il vuoto vale come assente.
+`env.configura_logging()` usa `LOG_LEVEL`. Non per i segreti.
+
+## `sentira_core.testing`
+
+Per `tests/conftest.py` delle app: `isola_ambiente(prefisso, segreti=…, valori=…)`
+prima di importare l'app (DATA_DIR temporanea, scheduler spento, segreti tolti,
+`.env` locale ignorato), `db_in_memoria(modulo_db, dopo=seed)` come fixture,
+`finto_openai(monkeypatch, risposte)` + `chunk`/`chiamata`/`eventi_sse` per la chat.
 
 ## `sentira_core.chat`
 
@@ -224,12 +278,10 @@ import { Chat } from "sentira-core/chat";
 <Chat chiaveSessione="nomeprodotto_session_id" testata={<SidebarTrigger />} />
 ```
 
-Nell'app, una volta: `transpilePackages: ["sentira-core"]` in `next.config.ts` e
-`@source "../../node_modules/sentira-core/web";` in `globals.css` (Tailwind non
-guarda in `node_modules`). Dipendenze attese dall'app: `react-markdown`,
-`remark-gfm`, `remark-breaks`, `recharts`, `motion`, `lucide-react`, `sonner`.
-La grafica usa i token e le classi del tema Sentira (`accent-rail`, `led`,
-`tick-corners`…): un'app senza perde le decorazioni, non le funzioni.
+L'app la prepara come ogni altro pezzo di `web/` (sotto, «Frontend condiviso»).
+Dipendenze in più per la chat: `react-markdown`, `remark-gfm`, `remark-breaks`.
+Le classi della grafica (`accent-rail`, `led`, `tick-corners`…) stanno in
+`stili.css`.
 
 ### Cambiare la chat in tutti i prodotti
 
@@ -243,6 +295,58 @@ La grafica usa i token e le classi del tema Sentira (`accent-rail`, `led`,
 Le regole di business di un cliente restano nel suo `src/chat.py` (o nei file
 `prompts/` di Lead Hunter): qui va solo ciò che vale per tutti.
 
+## Frontend condiviso (`web/`)
+
+Ciò che è uguale nei frontend Next.js dei prodotti, come sorgente TSX che l'app
+compila. Nell'app restano i valori dei token (il colore del brand), il logo, le
+voci di menu, l'intestazione e le decorazioni proprie.
+
+| Export | Cosa |
+|---|---|
+| `sentira-core/api` | `createClient()`, `request()`, `getJson<T>()`, `postJson<T>()`, `useApi<T>(url)`, `ApiError`, `messaggio(e, fallback)`, `leggiSSE(res)`. 401 → `/login`, `detail` di FastAPI (anche la lista di Pydantic) come testo, pagine HTML e rete assente come messaggio leggibile |
+| `sentira-core/formato` | `parseUtc` (il backend manda UTC senza offset), `dataRelativa`, `data(iso, stile)` (`breve`, `numerica`, `media`, `mediaOra`), `numero`, `euro`, `plurale`. Solo `Intl` |
+| `sentira-core/motion` | `FadeIn`, `StaggerList`, `AnimatedNumber` (in formato italiano), `PageTransition` |
+| `sentira-core/ui` | `cn`, `useIsMobile`, `EmptyState`, `ErrorState`, `LoadingState`, `KpiCard`, `Conferma` (al posto di `window.confirm`), `ChartTooltip`, `coloreSerie(i)`. Accanto, un file ciascuno, i componenti shadcn (`web/ui/button.tsx`…) |
+| `sentira-core/auth` | `AuthGuard` (sblocca solo con `autenticato: true`), `esci()` |
+| `sentira-core/layout` | `Providers`, `Login`, `ErrorPage`, `NotFound`, `ThemeToggle`, `MobileBottomNav`, `type NavItem`, `titoloSezione`, `useConteggio<T>(path)` |
+| `sentira-core/chat` | la pagina chat (sopra) |
+| `sentira-core/stili.css` | `@theme inline` (token → utility, comprese sidebar e grafici), `tw-animate-css`, `@layer base`, le classi usate dai componenti |
+
+Nell'app, una volta:
+
+- `next.config.ts`: `transpilePackages: ["sentira-core"]`.
+- `globals.css`: `@import "tailwindcss";`, poi `@import "sentira-core/stili.css";` e
+  `@source "../../node_modules/sentira-core/web";` (Tailwind non guarda in
+  `node_modules`), poi i valori dei token in `:root` e `[data-theme="light"]`:
+  l'elenco è in testa a `stili.css`.
+- `tsconfig.json`, in `paths` prima di `"@/*"`:
+  `"@/components/ui/*": ["./node_modules/sentira-core/web/ui/*"]`. Gli import
+  `@/components/ui/button` restano com'erano e arrivano qui; `src/components/ui/`
+  non esiste più. Funziona con il build di Next 16 (Turbopack).
+- Dipendenze: le `peerDependencies` di `package.json`.
+
+Le pagine di contorno diventano poche righe:
+
+```tsx
+// app/error.tsx
+"use client";
+import { ErrorPage } from "sentira-core/layout";
+export default ErrorPage;
+
+// app/login/page.tsx
+<Login logo={<Logo size={48} className="mx-auto mb-4" />} titolo="Lead Hunter"
+  sottotitolo="Accedi alla tua inbox lead" sfondo={<ParticlesCanvas />} />
+
+// app/(protected)/layout.tsx
+<AuthGuard><SidebarProvider><AppSidebar /> … <MobileBottomNav items={NAV_ITEMS} /></SidebarProvider></AuthGuard>
+```
+
+Dentro `web/`: import relativi (niente `@/`, che è dell'app), `"use client"` in
+cima ai file con hook. Un componente shadcn nuovo si aggiunge in `web/ui/`, con
+`./utils` al posto di `@/lib/utils`. Le varianti `data-horizontal:` delle versioni
+più recenti di shadcn vanno verificate su `@base-ui/react` 1.6 prima di adottarle.
+Arriva alle app con lo stesso giro della chat: nuovo tag, `npm install` del tarball.
+
 ## Sviluppo
 
 ```bash
@@ -255,11 +359,12 @@ da una suite di test significa, prima o poi, mandarla a un cliente.
 
 ## Versioni
 
-I progetti puntano a un tarball di tag (`v7`), mai a `main`: una modifica qui non deve
+I progetti puntano a un tarball di tag (`v8`), mai a `main`: una modifica qui non deve
 arrivare in produzione su tutti i clienti nello stesso istante.
 
 La numerazione dei tag di distribuzione è distinta dalla versione Python:
-`v4` corrisponde a `1.2.0`, `v5` a `1.3.0`, `v7` a `1.4.0` (chat).
+`v4` corrisponde a `1.2.0`, `v5` a `1.3.0`, `v7` a `1.4.0` (chat), `v8` a `1.5.0`
+(piattaforma: web, scheduler, tempo, env, testing, allinea_schema; frontend condiviso).
 Confronto, criteri di ammissione e passaggi di aggiornamento:
 [migrazione v5](docs/migrazione-v5.md).
 

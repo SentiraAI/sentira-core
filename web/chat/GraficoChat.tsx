@@ -2,6 +2,7 @@
 
 import { Bar, BarChart, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { BarChart3 } from "lucide-react";
+import { ChartTooltip, coloreSerie } from "../ui/grafici";
 
 /* Grafico dentro una risposta della chat. Il backend (mostra_grafico, vedi
    sentira_core.chat.grafico) lo scrive nel testo come blocco ```grafico con questo
@@ -15,9 +16,6 @@ interface Spec {
   nota?: string; // la base dei numeri, es. "Su 70 richieste nuove"
 }
 
-// stessa scala dei grafici della pagina Lead: toni lontani per le colonne impilate
-const COLORI = ["var(--chart-1)", "var(--chart-4)", "var(--chart-2)", "var(--chart-5)"];
-
 function leggi(testo: string): Spec | null {
   try {
     const s = JSON.parse(testo) as Spec;
@@ -25,20 +23,6 @@ function leggi(testo: string): Spec | null {
   } catch {
     return null; // blocco troncato o malformato: niente grafico, niente crash
   }
-}
-
-function TooltipBarre({ active, payload }: {
-  active?: boolean;
-  payload?: { payload: { nome: string; valore: number } }[];
-}) {
-  if (!active || !payload?.length) return null;
-  const p = payload[0].payload;
-  return (
-    <div className="rounded-lg border border-primary/40 bg-card/90 px-3 py-2 text-sm shadow backdrop-blur-sm">
-      <div className="font-medium">{p.nome}</div>
-      <div className="text-muted-foreground">{p.valore}</div>
-    </div>
-  );
 }
 
 function TooltipColonne({ active, payload, label }: {
@@ -83,8 +67,8 @@ export function GraficoChat({ testo }: { testo: string }) {
           >
             <XAxis type="number" hide allowDecimals={false} />
             <YAxis type="category" dataKey="nome" fontSize={12} tickLine={false} axisLine={false} width={140} />
-            <Tooltip content={<TooltipBarre />} cursor={{ fill: "var(--muted)", opacity: 0.3 }} />
-            <Bar dataKey="valore" fill={COLORI[0]} radius={[0, 4, 4, 0]} animationDuration={600}
+            <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--muted)", opacity: 0.3 }} />
+            <Bar dataKey="valore" fill={coloreSerie(0)} radius={[0, 4, 4, 0]} animationDuration={600}
               label={{ position: "right", fontSize: 12, fill: "var(--muted-foreground)" }} />
           </BarChart>
         </ResponsiveContainer>
@@ -96,7 +80,7 @@ export function GraficoChat({ testo }: { testo: string }) {
             <Tooltip content={<TooltipColonne />} cursor={{ fill: "var(--muted)", opacity: 0.3 }} />
             {piuSerie && <Legend iconType="square" iconSize={10} wrapperStyle={{ fontSize: 12 }} />}
             {s.serie.map((x, i) => (
-              <Bar key={x.chiave} dataKey={x.chiave} name={x.nome} stackId="serie" fill={COLORI[i % COLORI.length]}
+              <Bar key={x.chiave} dataKey={x.chiave} name={x.nome} stackId="serie" fill={coloreSerie(i)}
                 radius={i === s.serie.length - 1 ? [4, 4, 0, 0] : 0} animationDuration={600} />
             ))}
           </BarChart>

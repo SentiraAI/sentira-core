@@ -1,0 +1,189 @@
+/* === Base comune dei frontend Sentira ===
+
+   Qui: la mappa dei token in utility Tailwind (bg-card, bg-sidebar, text-primary…),
+   le animazioni dei componenti (dialog, select, popover: tw-animate-css) e le classi
+   che usano i componenti di sentira-core (chat, navigazione).
+
+   Nell'app restano i VALORI dei token (`:root`, `[data-theme="light"]`) e le sue
+   decorazioni. Uso, in globals.css subito dopo `@import "tailwindcss";`:
+
+     @import "sentira-core/stili.css";
+
+   Token che l'app deve definire: background foreground card card-foreground popover
+   popover-foreground primary primary-foreground secondary secondary-foreground muted
+   muted-foreground accent accent-foreground destructive destructive-foreground
+   success success-foreground warning warning-foreground border input ring chart-1…5
+   sidebar sidebar-foreground sidebar-primary sidebar-primary-foreground sidebar-accent
+   sidebar-accent-foreground sidebar-border sidebar-ring radius. Font (next/font):
+   --font-sans, --font-display, opzionale --font-mono. */
+
+@import "tw-animate-css";
+
+@theme inline {
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono, ui-monospace, monospace);
+  --font-heading: var(--font-sans);
+
+  /* Senza questa mappa le classi semantiche non generano CSS e restano trasparenti. */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+
+  /* Cifre a larghezza fissa: un numero che conta non sposta la riga */
+  .metric {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Titoli e numeri grandi nel font display dell'app */
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+}
+
+/* Date e numeri da quadro strumenti */
+.font-instrument {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+/* La barra in basso su mobile non finisce sotto l'indicatore home dell'iPhone */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+
+/* Shimmer: caricamento di una risposta AI */
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 25%, color-mix(in oklch, var(--primary) 12%, transparent) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Tre puntini che pulsano in sequenza: "sto pensando" */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+.animate-pulse-dot {
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+.animate-pulse-dot:nth-child(2) { animation-delay: 0.2s; }
+.animate-pulse-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* Tacche agli angoli (alto-sinistra, basso-destra): cornice da strumento */
+.tick-corners { position: relative; }
+.tick-corners::before, .tick-corners::after {
+  content: "";
+  position: absolute;
+  width: 11px; height: 11px;
+  border-color: color-mix(in oklch, var(--primary) 55%, transparent);
+  border-style: solid;
+  pointer-events: none;
+  transition: border-color 200ms ease-out;
+}
+.tick-corners::before { top: 7px; left: 7px; border-width: 1px 0 0 1px; }
+.tick-corners::after  { bottom: 7px; right: 7px; border-width: 0 1px 1px 0; }
+.tick-corners:hover::before, .tick-corners:hover::after {
+  border-color: var(--primary);
+}
+
+/* LED di stato, del colore del testo; `led-on` pulsa */
+.led {
+  width: 7px; height: 7px; border-radius: 9999px;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+.led-on { animation: led-pulse 2.2s ease-in-out infinite; }
+@keyframes led-pulse {
+  0%, 100% { box-shadow: 0 0 3px currentColor; opacity: .75; }
+  50%      { box-shadow: 0 0 11px currentColor; opacity: 1; }
+}
+
+/* Binario di accento sul bordo sinistro */
+.accent-rail { position: relative; }
+.accent-rail::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 14%; bottom: 14%;
+  width: 2px;
+  background: linear-gradient(var(--primary), color-mix(in oklch, var(--primary) 20%, transparent));
+  border-radius: 2px;
+}
+
+/* Bagliore radiale dietro la barra della chat */
+.console-glow { position: relative; }
+.console-glow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(140% 120% at 0% 50%, color-mix(in oklch, var(--primary) 16%, transparent), transparent 55%);
+  pointer-events: none;
+  opacity: .9;
+}
+
+/* Griglia da strumento: sfondo degli stati vuoti */
+.grid-instrument {
+  background-image:
+    linear-gradient(color-mix(in oklch, var(--primary) 9%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklch, var(--primary) 9%, transparent) 1px, transparent 1px);
+  background-size: 22px 22px;
+  background-position: center;
+  mask-image: radial-gradient(ellipse 70% 70% at center, #000 30%, transparent 75%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .led-on { animation: none; }
+}

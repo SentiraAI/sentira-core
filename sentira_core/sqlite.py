@@ -10,6 +10,7 @@ serve perché FastAPI serve le richieste da un thread pool.
     engine = crea_motore()                    # usa DATA_DIR, default ./data
     Session = crea_sessione(engine)
     Base.metadata.create_all(engine)
+    allinea_schema(engine, Base)              # colonne e indici nuovi su un DB esistente
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ from __future__ import annotations
 import logging
 import os
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, inspect
 from sqlalchemy.orm import sessionmaker
 
 log = logging.getLogger("db")
@@ -68,3 +69,70 @@ def crea_motore(nome: str = "app.db", echo: bool = False):
 
 def crea_sessione(motore):
     return sessionmaker(bind=motore, autoflush=False, expire_on_commit=False)
+
+
+def _default_sql(col) -> str | None:
+    d = col.default
+    if d is None or not d.is_scalar:
+        return None
+    if isinstance(d.arg, bool):
+        return str(int(d.arg))
+    if isinstance(d.arg, (int, float)):
+        return f"{d.arg:g}"
+    if isinstance(d.arg, str):
+        return "'" + d.arg.replace("'", "''") + "'"
+    return None
+
+
+def allinea_schema(motore, Base) -> list[str]:
+    """Aggiunge alle tabelle esistenti le colonne e gli indici che il modello ha
+    e il DB no. `create_all` crea solo le tabelle mancanti; senza Alembic,
+    questa è tutta la migrazione. Le colonne si ricavano dal modello, non da
+    un elenco a mano (che si era dimenticato una colonna, e ogni query su
+    quella tabella falliva).
+
+    Il default scalare del modello diventa il DEFAULT SQL, così le righe
+    vecchie partono da quel valore invece che da NULL. Una colonna NOT NULL
+    senza default SQLite non la può aggiungere: resta fuori, con un warning.
+    Restituisce le modifiche fatte, una stringa ciascuna.
+    """
+    fatte: list[str] = []
+    insp = inspect(motore)
+    esistenti = set(insp.get_table_names())
+    q = motore.dialect.identifier_preparer.quote
+    with motore.begin() as conn:
+        for tabella in Base.metadata.sorted_tables:
+            if tabella.name not in esistenti:
+                continue
+            presenti = {c["name"] for c in insp.get_columns(tabella.name)}
+            for col in tabella.columns:
+                if col.name in presenti:
+                    continue
+                default = _default_sql(col)
+                if not col.nullable and default is None:
+                    log.warning("colonna %s.%s non aggiunta: NOT NULL senza default, "
+                                "serve una migrazione a mano", tabella.name, col.name)
+                    continue
+                ddl = col.type.compile(dialect=motore.dialect)
+                if default is not None:
+                    ddl += f"{'' if col.nullable else ' NOT NULL'} DEFAULT {default}"
+                conn.exec_driver_sql(f"ALTER TABLE {q(tabella.name)} ADD COLUMN {q(col.name)} {ddl}")
+                fatte.append(f"colonna {tabella.name}.{col.name}")
+    # Un indice per transazione, e mai fatale: uno UNIQUE su dati con doppioni
+    # fallisce, e l'app deve partire lo stesso (il warning dice cosa ripulire).
+    for tabella in Base.metadata.sorted_tables:
+        if tabella.name not in esistenti:
+            continue
+        presenti = {i["name"] for i in insp.get_indexes(tabella.name)}
+        for indice in tabella.indexes:
+            if indice.name in presenti:
+                continue
+            try:
+                with motore.begin() as conn:
+                    indice.create(conn, checkfirst=True)
+                fatte.append(f"indice {indice.name}")
+            except Exception as exc:  # noqa: BLE001
+                log.warning("indice %s non creato: %s", indice.name, exc)
+    for voce in fatte:
+        log.info("schema allineato: %s", voce)
+    return fatte

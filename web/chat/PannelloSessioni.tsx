@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, MessageSquare, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import { BOTTONE, dataRelativa, richiesta } from "./api";
+import { createClient, getJson } from "../api";
+import { dataRelativa } from "../formato";
+import { Conferma } from "../ui/Conferma";
+import { BOTTONE } from "./stile";
 
 interface Sessione {
   id: number;
@@ -33,7 +36,7 @@ export function PannelloSessioni({ attiva, onSeleziona, onNuova, onRegistraAggio
   const carica = useCallback(async () => {
     setCaricamento(true);
     try {
-      setSessioni(await (await richiesta("GET", "/api/chat/sessions")).json());
+      setSessioni(await getJson<Sessione[]>("/api/chat/sessions"));
     } catch {
       /* elenco non disponibile: resta quello che c'era */
     } finally {
@@ -51,7 +54,7 @@ export function PannelloSessioni({ attiva, onSeleziona, onNuova, onRegistraAggio
 
   const elimina = useCallback(async (id: number) => {
     try {
-      await richiesta("DELETE", `/api/chat/sessions/${id}`);
+      await createClient().delete(`/api/chat/sessions/${id}`);
     } catch (e) {
       // la chat esiste ancora sul server: la riga resta, altrimenti ricomparirebbe
       toast.error("Eliminazione fallita: " + (e as Error).message);
@@ -62,9 +65,8 @@ export function PannelloSessioni({ attiva, onSeleziona, onNuova, onRegistraAggio
   }, [attiva, onNuova]);
 
   const eliminaTutte = useCallback(async () => {
-    setConfermaTutte(false);
     try {
-      await richiesta("DELETE", "/api/chat/sessions");
+      await createClient().delete("/api/chat/sessions");
     } catch (e) {
       toast.error("Eliminazione fallita: " + (e as Error).message);
       return;
@@ -84,7 +86,7 @@ export function PannelloSessioni({ attiva, onSeleziona, onNuova, onRegistraAggio
     setRinomina(null);
     if (!title) return;
     try {
-      const aggiornata: Sessione = await (await richiesta("PATCH", `/api/chat/sessions/${id}`, { title })).json();
+      const aggiornata: Sessione = await (await createClient().patch(`/api/chat/sessions/${id}`, { title })).json();
       setSessioni((prev) => prev.map((s) => (s.id === id ? { ...s, title: aggiornata.title } : s)));
     } catch (e) {
       toast.error("Rinomina fallita: " + (e as Error).message);
@@ -126,19 +128,9 @@ export function PannelloSessioni({ attiva, onSeleziona, onNuova, onRegistraAggio
         </button>
       </div>
 
-      {confermaTutte && (
-        <div role="alertdialog" aria-label="Eliminare tutte le chat?"
-          className="mx-3 mb-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs">
-          <p className="font-medium text-foreground">Eliminare tutte le chat?</p>
-          <p className="mt-1 text-muted-foreground">Cancella tutte le conversazioni e non si può annullare.</p>
-          <div className="mt-2 flex justify-end gap-2">
-            <button type="button" className={`${BOTTONE} h-7 border-border px-2.5 text-xs hover:bg-muted`}
-              onClick={() => setConfermaTutte(false)}>Annulla</button>
-            <button type="button" className={`${BOTTONE} h-7 bg-destructive/10 px-2.5 text-xs text-destructive hover:bg-destructive/20`}
-              onClick={eliminaTutte}>Elimina tutto</button>
-          </div>
-        </div>
-      )}
+      <Conferma open={confermaTutte} onOpenChange={setConfermaTutte} titolo="Eliminare tutte le chat?"
+        descrizione="Cancella tutte le conversazioni e non si può annullare." etichetta="Elimina tutto"
+        distruttiva onConferma={eliminaTutte} />
 
       <div className="flex-1 overflow-y-auto px-2">
         {caricamento && sessioni.length === 0 ? (

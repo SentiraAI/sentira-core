@@ -45,7 +45,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
+from . import ai_usage
 from .ai_usage import reasoning_kwargs
+from .tempo import oggi_roma
 
 log = logging.getLogger("chat")
 
@@ -368,8 +370,8 @@ class Chat:
                  descrizione: str = "", modello: Callable[[], str] | None = None,
                  oggi: Callable[[], date] | None = None, feature: str = "chat"):
         self.db, self.record, self.prompt, self.feature = db, record, prompt, feature
-        self.modello = modello or (lambda: os.environ.get("OPENAI_MODEL_REASONING", "gpt-6-luna"))
-        self.oggi = oggi or _oggi_roma
+        self.modello = modello or (lambda: ai_usage.modello("OPENAI_MODEL_REASONING"))
+        self.oggi = oggi or oggi_roma
         self.config = {"titolo": titolo, "descrizione": descrizione,
                        "suggerimenti": list(suggerimenti)}
         strumenti = list(strumenti)
@@ -628,11 +630,6 @@ class Chat:
                         "created_at": sess.created_at.isoformat()}
 
         return router
-
-
-def _oggi_roma() -> date:
-    from zoneinfo import ZoneInfo  # serve tzdata sulle immagini slim
-    return datetime.now(ZoneInfo("Europe/Rome")).date()
 
 
 crea_chat = Chat  # stesso stile di crea_auth / crea_errorreport

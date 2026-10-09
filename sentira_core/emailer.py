@@ -14,22 +14,12 @@ poter girare lo stesso.
 
 Il conteggio va persistito, ma *dove* dipende dallo schema dell'applicazione, ed
 è l'unica ragione per cui questo modulo non era estraibile prima. Ora lo si
-inietta:
+inietta. Con una tabella chiave/valore (colonne `key` e `value`) basta una riga:
 
-    from sentira_core import emailer
-    from . import db
+    emailer.usa_contatore_kv(db.get_session, db.SyncState)
 
-    def _contatore(chiave, incrementa):
-        with db.get_session() as s:
-            riga = s.get(db.SyncState, chiave)
-            attuale = int(riga.value) if riga and riga.value else 0
-            if incrementa:
-                if riga: riga.value = str(attuale + 1)
-                else:    s.add(db.SyncState(key=chiave, value="1"))
-                s.commit()
-            return attuale
-
-    emailer.usa_contatore(_contatore)
+altrimenti `emailer.usa_contatore(fn)` con `fn(chiave, incrementa) -> conteggio`.
+Il giorno del cap è quello di Roma, non quello UTC del container.
 
 Senza contatore registrato il cap non viene applicato e la cosa viene loggata
 una volta sola: meglio inviare senza cap che non inviare per una dipendenza
@@ -40,12 +30,13 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import date
 from typing import Callable
 
 import httpx
 import markdown as _md
 from jinja2 import Environment, StrictUndefined, TemplateError
+
+from .tempo import oggi_roma
 
 log = logging.getLogger("emailer")
 
@@ -66,6 +57,23 @@ def usa_contatore(fn: Callable[[str, bool], int]) -> None:
     """Registra la funzione che persiste il conteggio giornaliero."""
     global _contatore
     _contatore = fn
+
+
+def usa_contatore_kv(get_session: Callable, Modello) -> None:
+    """Contatore su una tabella chiave/valore con colonne `key` e `value` (stringa)."""
+    def contatore(chiave: str, incrementa: bool) -> int:
+        with get_session() as s:
+            riga = s.get(Modello, chiave)
+            attuale = int(riga.value) if riga and riga.value else 0
+            if incrementa:
+                if riga:
+                    riga.value = str(attuale + 1)
+                else:
+                    s.add(Modello(key=chiave, value="1"))
+                s.commit()
+            return attuale
+
+    usa_contatore(contatore)
 
 
 def rendi(testo: str, variabili: dict) -> str:
@@ -97,7 +105,7 @@ def _sotto_il_cap() -> bool:
             _avvisato_senza_contatore = True
         return True
     cap = int(os.environ.get("EMAIL_DAILY_CAP", "50"))
-    chiave = f"email_count_{date.today().isoformat()}"
+    chiave = f"email_count_{oggi_roma().isoformat()}"
     if _contatore(chiave, False) >= cap:
         log.warning("Cap giornaliero email raggiunto (%s): invio bloccato", cap)
         return False

@@ -6,7 +6,8 @@ import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import { Bot, Check, ChevronDown, ChevronRight, Copy, Plus, RefreshCw, Send, Square } from "lucide-react";
-import { BOTTONE, richiesta } from "./api";
+import { createClient, getJson, leggiSSE } from "../api";
+import { BOTTONE } from "./stile";
 import { GraficoChat } from "./GraficoChat";
 import { PannelloSessioni } from "./PannelloSessioni";
 
@@ -25,6 +26,13 @@ interface Config {
   descrizione: string;
   suggerimenti: string[];
 }
+
+/** un evento dello stream di POST /api/chat */
+type EventoChat =
+  | { type: "text"; content: string }
+  | { type: "tool"; etichetta?: string }
+  | { type: "done"; session_id: number; content?: string }
+  | { type: "error"; detail?: string };
 
 interface Props {
   /** chiave di localStorage della sessione aperta, diversa per ogni prodotto */
@@ -150,16 +158,15 @@ export function Chat({ chiaveSessione, testata }: Props) {
   }, [chiaveSessione]);
 
   useEffect(() => {
-    richiesta("GET", "/api/chat/config").then((r) => r.json()).then(setConfig).catch(() => {});
+    getJson<Config>("/api/chat/config").then(setConfig).catch(() => {});
   }, []);
 
   useEffect(() => {
     if (!sessionId || caricatoRef.current) return;
     caricatoRef.current = true;
     setCaricaStorico(true);
-    richiesta("GET", `/api/chat/sessions/${sessionId}`)
-      .then((r) => r.json())
-      .then((data: { messages: Messaggio[] }) => setMessaggi(data.messages ?? []))
+    getJson<{ messages: Messaggio[] }>(`/api/chat/sessions/${sessionId}`)
+      .then((data) => setMessaggi(data.messages ?? []))
       .catch(() => {
         // sessione sparita (404): l'id ricordato è vecchio
         ricorda(null);
@@ -204,40 +211,23 @@ export function Chat({ chiaveSessione, testata }: Props) {
     abortRef.current = controller;
 
     try {
-      const res = await richiesta("POST", "/api/chat", { message: testo, session_id: sessionId }, controller.signal);
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("Nessuna risposta dal server");
-      const decoder = new TextDecoder();
-      let buffer = "";
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const righe = buffer.split("\n");
-        buffer = righe.pop() || "";
-        for (const riga of righe) {
-          if (!riga.startsWith("data: ")) continue;
-          let ev;
-          try {
-            ev = JSON.parse(riga.slice(6));
-          } catch {
-            continue;
-          }
-          if (ev.type === "text") {
-            setStrumento(null);
-            aggiornaUltimo((m) => ({ ...m, content: m.content + ev.content }));
-          } else if (ev.type === "tool") {
-            setStrumento(ev.etichetta || "Sto elaborando…");
-          } else if (ev.type === "done") {
-            setStrumento(null);
-            setSessionId(ev.session_id);
-            caricatoRef.current = true;
-            // testo definitivo del server: senza grafici non usciti dal database
-            aggiornaUltimo((m) => ({ ...m, content: ev.content ?? m.content, pending: false }));
-            aggiornaPannello.current?.();
-          } else if (ev.type === "error") {
-            throw new Error(ev.detail || "Errore durante la risposta");
-          }
+      const res = await createClient().post("/api/chat", { message: testo, session_id: sessionId },
+        { signal: controller.signal });
+      for await (const ev of leggiSSE<EventoChat>(res)) {
+        if (ev.type === "text") {
+          setStrumento(null);
+          aggiornaUltimo((m) => ({ ...m, content: m.content + ev.content }));
+        } else if (ev.type === "tool") {
+          setStrumento(ev.etichetta || "Sto elaborando…");
+        } else if (ev.type === "done") {
+          setStrumento(null);
+          setSessionId(ev.session_id);
+          caricatoRef.current = true;
+          // testo definitivo del server: senza grafici non usciti dal database
+          aggiornaUltimo((m) => ({ ...m, content: ev.content ?? m.content, pending: false }));
+          aggiornaPannello.current?.();
+        } else if (ev.type === "error") {
+          throw new Error(ev.detail || "Errore durante la risposta");
         }
       }
     } catch (e) {

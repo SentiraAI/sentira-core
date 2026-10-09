@@ -1,7 +1,5 @@
 """Contratti del motore chat: allowlist dei tool, confine dei dati, grafici veri, storico."""
 
-import json
-import sys
 from datetime import date
 from types import SimpleNamespace
 
@@ -12,7 +10,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, declarative_base
 from sqlalchemy.pool import StaticPool
 
-from sentira_core import chat
+from sentira_core import chat, testing
 
 Base = declarative_base()
 ChatSession, ChatMessage = chat.modelli(Base)
@@ -26,7 +24,7 @@ def ambiente(monkeypatch):
     Base.metadata.create_all(engine)
     db = SimpleNamespace(get_session=lambda: Session(engine),
                          ChatSession=ChatSession, ChatMessage=ChatMessage)
-    consumi, eseguiti, richieste = [], [], []
+    consumi, eseguiti = [], []
 
     def cerca(args):
         eseguiti.append(args)
@@ -51,13 +49,7 @@ def ambiente(monkeypatch):
         oggi=lambda: date(2030, 1, 2))
 
     def provider(risposte):
-        def create(**kwargs):
-            richieste.append(json.loads(json.dumps(kwargs, default=str)))
-            return iter(risposte[len(richieste) - 1])
-        monkeypatch.setenv("OPENAI_API_KEY", "chiave-fittizia")
-        monkeypatch.setitem(sys.modules, "openai", SimpleNamespace(OpenAI=lambda: SimpleNamespace(
-            chat=SimpleNamespace(completions=SimpleNamespace(create=create)))))
-        return richieste
+        return testing.finto_openai(monkeypatch, risposte)
 
     app = FastAPI()
     app.include_router(motore.router)
@@ -65,20 +57,7 @@ def ambiente(monkeypatch):
                            consumi=consumi, eseguiti=eseguiti, db=db)
 
 
-def _chunk(content=None, tool_calls=None, finish_reason=None, usage=None):
-    return SimpleNamespace(usage=usage, choices=[] if usage else [SimpleNamespace(
-        delta=SimpleNamespace(content=content, tool_calls=tool_calls), finish_reason=finish_reason)])
-
-
-def _chiamata(nome, argomenti, indice=0, identificativo="call_0"):
-    return SimpleNamespace(index=indice, id=identificativo,
-                           function=SimpleNamespace(name=nome, arguments=argomenti))
-
-
-def _eventi(client, **body):
-    r = client.post("/api/chat", json=body)
-    assert r.status_code == 200 and r.headers["cache-control"] == "no-cache"
-    return [json.loads(riga[6:]) for riga in r.text.splitlines() if riga.startswith("data: ")]
+_chunk, _chiamata, _eventi = testing.chunk, testing.chiamata, testing.eventi_sse
 
 
 @pytest.mark.parametrize("nome,args", [

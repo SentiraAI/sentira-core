@@ -6,7 +6,18 @@ Il tracking non deve mai interrompere una chiamata AI riuscita.
 
 import logging
 
+from . import env
+
 log = logging.getLogger("ai_usage")
+
+# Il modello di default di tutti i prodotti: cambiarlo qui (e spostare il pin)
+# è tutta la migrazione. I valori veri di produzione stanno in env.public.
+MODELLO_DEFAULT = "gpt-6-luna"
+
+
+def modello(variabile: str = "OPENAI_MODEL", default: str = MODELLO_DEFAULT) -> str:
+    """Il modello configurato in `variabile`, o il default se manca o è vuota."""
+    return env.valore(variabile, default)
 
 # USD per 1M token (input, cached input, cache writes, output): tariffe
 # identiche nei due consumer. Fonte: developers.openai.com/api/docs/pricing.

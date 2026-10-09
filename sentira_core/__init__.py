@@ -9,10 +9,15 @@ niente che riguardi un cliente specifico.
     sentira_core.auth      auth a password singola con cookie firmato HMAC
     sentira_core.ai_usage  costo token e registrazione consumo non bloccante
     sentira_core.chat      chat sui dati: motore SSE, tool, grafici, regole del prompt
+    sentira_core.web       frontend statico Next.js, protetto dal path traversal
+    sentira_core.scheduler APScheduler: avvio, spegnimento, job protetti
+    sentira_core.tempo     oggi/adesso sul fuso di Roma
+    sentira_core.env       variabili d'ambiente tolleranti, logging
+    sentira_core.testing   aiuti per i test delle app
 
 La regola per aggiungere qualcosa qui: **deve già esistere identico in almeno
 due progetti**. Codice messo qui "perché prima o poi servirà" diventa un vincolo
 per tutti senza essere utile a nessuno.
 """
 
-__version__ = "1.4.0"
+__version__ = "1.5.0"
