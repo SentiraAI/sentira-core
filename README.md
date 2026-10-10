@@ -366,6 +366,7 @@ voci di menu, l'intestazione e le decorazioni proprie.
 | `sentira-core/auth` | `AuthGuard` (sblocca solo con `autenticato: true`), `esci()` |
 | `sentira-core/layout` | `Providers`, `Login`, `ErrorPage`, `NotFound`, `ThemeToggle`, `MobileBottomNav`, `type NavItem`, `titoloSezione`, `useConteggio<T>(path)` |
 | `sentira-core/chat` | la pagina chat (sopra) |
+| `sentira-core/consumo` | `<ConsumoAI etichette intestazione className>`: spesa AI in € (mese, storico 6/12/24 mesi, per funzione, totali). Legge `GET /api/usage/stats`, che l'app serve con `sentira_core.ai_usage.usage_stats(db, PRICING, mesi=…, colonna_data=…)`; cambio `AI_USD_TO_EUR` (default 0.86) |
 | `sentira-core/stili.css` | `@theme inline` (token → utility, comprese sidebar e grafici), `tw-animate-css`, `@layer base`, le classi usate dai componenti |
 
 Nell'app, una volta:
@@ -423,7 +424,8 @@ La numerazione dei tag di distribuzione è distinta dalla versione Python:
 (piattaforma: web, scheduler, tempo, env, testing, allinea_schema; frontend condiviso), `v9` a `1.6.0`
 (risposte strutturate dell'AI, serie, rete), `v10` a `1.7.0` (sicurezza: `proteggi`,
 template email in sandbox, HTML grezzo neutralizzato, limite globale ai login,
-algoritmo JWT fisso, niente URL con segreti nei log, niente menzioni Discord).
+algoritmo JWT fisso, niente URL con segreti nei log, niente menzioni Discord), `v11` a `1.8.0`
+(consumo AI in euro: `ai_usage.usage_stats` e `<ConsumoAI>` di `sentira-core/consumo`).
 Confronto, criteri di ammissione e passaggi di aggiornamento:
 [migrazione v5](docs/migrazione-v5.md).
 

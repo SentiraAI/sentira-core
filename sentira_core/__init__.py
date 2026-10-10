@@ -22,4 +22,4 @@ due progetti**. Codice messo qui "perché prima o poi servirà" diventa un vinco
 per tutti senza essere utile a nessuno.
 """
 
-__version__ = "1.7.0"
+__version__ = "1.8.0"

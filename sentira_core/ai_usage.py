@@ -6,8 +6,9 @@ Il tracking non deve mai interrompere una chiamata AI riuscita.
 
 import json
 import logging
+from datetime import date, datetime, timezone
 
-from . import env
+from . import env, serie
 
 log = logging.getLogger("ai_usage")
 
@@ -135,3 +136,79 @@ def leggi_json(resp) -> dict:
     if not isinstance(dati, dict):
         raise ValueError(f"risposta AI non in JSON: {testo[:200]}")
     return dati
+
+
+def usage_stats(db, pricing: dict, *, mesi: int = 6, colonna_data: str = "ts",
+                adesso: datetime | None = None) -> dict:
+    """Consumo in euro per la pagina «Consumo AI»: mese corrente, storico di
+    `mesi` mesi (vuoti a zero), trend giornaliero del mese, totali dall'inizio.
+
+    `colonna_data` è il nome della colonna data di `db.AiUsage` (`ts` o
+    `created_at`: ogni app ha la sua). Il cambio è `AI_USD_TO_EUR` (default 0.86).
+    Tutto in Python su una query sola: il volume è di poche centinaia di righe
+    al mese. ponytail: se un cliente arriva a milioni di righe, aggregare in SQL.
+    """
+    cambio = float(env.valore("AI_USD_TO_EUR", "0.86"))
+    adesso = adesso or datetime.now(timezone.utc).replace(tzinfo=None)
+    consumo = db.AiUsage
+    with db.get_session() as s:
+        righe = s.query(getattr(consumo, colonna_data), consumo.feature, consumo.model,
+                        consumo.cost_usd, consumo.prompt_tokens, consumo.completion_tokens,
+                        consumo.cached_tokens).all()
+
+    inizio_mese = adesso.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    anno, mese0 = divmod(inizio_mese.year * 12 + inizio_mese.month - 1 - (mesi - 1), 12)
+    storico = {m.strftime("%Y-%m"): [0.0, 0]
+               for m in serie.periodi(date(anno, mese0 + 1, 1), inizio_mese, "mese")}
+    giorni = {g: [0.0, 0] for g in range(1, adesso.day + 1)}
+    per_feature: dict[str, list] = {}
+    per_model: dict[str, list] = {}
+    mese = [0.0, 0]
+    totale = [0.0, 0, 0, 0, 0]  # usd, richieste, input, output, cached
+    primo = None
+
+    def somma(voce, usd):
+        voce[0] += usd
+        voce[1] += 1
+
+    for ts, feature, model, usd, tok_in, tok_out, tok_cached in righe:
+        usd = usd or 0.0
+        somma(totale, usd)
+        totale[2] += tok_in or 0
+        totale[3] += tok_out or 0
+        totale[4] += tok_cached or 0
+        if not ts:
+            continue
+        primo = ts if primo is None else min(primo, ts)
+        if ts.strftime("%Y-%m") in storico:
+            somma(storico[ts.strftime("%Y-%m")], usd)
+        if ts >= inizio_mese:
+            somma(mese, usd)
+            somma(giorni.setdefault(ts.day, [0.0, 0]), usd)
+            somma(per_feature.setdefault(feature, [0.0, 0]), usd)
+            somma(per_model.setdefault(model, [0.0, 0]), usd)
+
+    def eur(usd):
+        return round(usd * cambio, 4)
+
+    def voci(d):
+        return {k: {"richieste": v[1], "cost_eur": eur(v[0])} for k, v in d.items()}
+
+    return {
+        "current": {
+            "mese": inizio_mese.strftime("%Y-%m"),
+            "cost_eur": eur(mese[0]), "cost_usd": round(mese[0], 4), "richieste": mese[1],
+            "per_feature": voci(per_feature), "per_model": voci(per_model),
+        },
+        "history": [{"mese": m, "cost_eur": eur(v[0]), "richieste": v[1]} for m, v in storico.items()],
+        "daily": [{"giorno": g, "label": f"{g:02d}", "cost_eur": eur(v[0]), "richieste": v[1]}
+                  for g, v in sorted(giorni.items())],
+        "totals": {
+            "richieste": totale[1], "cost_eur": eur(totale[0]), "cost_usd": round(totale[0], 4),
+            "prompt_tokens": totale[2], "completion_tokens": totale[3], "cached_tokens": totale[4],
+            "dal": primo.strftime("%Y-%m-%d") if primo else None,
+        },
+        "pricing": {m: {"input_per_1m": v[0], "cached_per_1m": v[1],
+                        "cache_write_per_1m": v[2], "output_per_1m": v[3]}
+                    for m, v in pricing.items()},
+    }
