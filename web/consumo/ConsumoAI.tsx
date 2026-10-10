@@ -28,7 +28,7 @@ function BarraCosto({ label, cost, max }: { label: string; cost: number; max: nu
   const pct = max > 0 ? Math.max((cost / max) * 100, 2) : 0;
   return (
     <div className="flex items-center gap-2.5">
-      <span className="font-instrument text-[11px] uppercase tracking-[0.12em] text-muted-foreground w-40 shrink-0 truncate">
+      <span title={label} className="font-instrument text-[11px] uppercase tracking-[0.12em] text-muted-foreground leading-tight w-36 sm:w-60 shrink-0">
         {label}
       </span>
       <div className="flex-1 h-1.5 rounded-full bg-muted/50 overflow-hidden">
