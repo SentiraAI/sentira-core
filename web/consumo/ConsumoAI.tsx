@@ -149,7 +149,7 @@ export function ConsumoAI({ etichette = {}, intestazione, className }: {
                   const isHover = hovered === h.mese;
                   return (
                     <div key={h.mese}
-                      className="relative flex flex-col items-center gap-1 flex-1"
+                      className="relative flex flex-col items-center gap-1 flex-1 h-full"
                       onMouseEnter={() => setHovered(h.mese)}
                       onMouseLeave={() => setHovered(null)}>
                       {isHover && (
@@ -158,7 +158,7 @@ export function ConsumoAI({ etichette = {}, intestazione, className }: {
                           <div className="text-[10px] text-muted-foreground">{plurale(h.richieste, "richiesta", "richieste")}</div>
                         </div>
                       )}
-                      <div className="w-full flex items-end justify-center" style={{ height: "100%" }}>
+                      <div className="w-full flex-1 min-h-0 flex items-end justify-center">
                         <div
                           className={`w-full max-w-[1.75rem] rounded-t-sm transition-all ${
                             h.cost_eur > 0

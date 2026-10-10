@@ -425,7 +425,8 @@ La numerazione dei tag di distribuzione è distinta dalla versione Python:
 (risposte strutturate dell'AI, serie, rete), `v10` a `1.7.0` (sicurezza: `proteggi`,
 template email in sandbox, HTML grezzo neutralizzato, limite globale ai login,
 algoritmo JWT fisso, niente URL con segreti nei log, niente menzioni Discord), `v11` a `1.8.0`
-(consumo AI in euro: `ai_usage.usage_stats` e `<ConsumoAI>` di `sentira-core/consumo`).
+(consumo AI in euro: `ai_usage.usage_stats` e `<ConsumoAI>` di `sentira-core/consumo`), `v12` a `1.8.1`
+(il grafico mensile di `<ConsumoAI>` mostrava le barre a 3 px: corretto; usare `v12`, non `v11`).
 Confronto, criteri di ammissione e passaggi di aggiornamento:
 [migrazione v5](docs/migrazione-v5.md).
 
