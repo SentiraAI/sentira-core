@@ -1,21 +1,17 @@
 /* === Base comune dei frontend Sentira ===
 
    Qui: la mappa dei token in utility Tailwind (bg-card, bg-sidebar, text-primary…),
-   le animazioni dei componenti (dialog, select, popover: tw-animate-css) e le classi
-   che usano i componenti di sentira-core (chat, navigazione).
-
-   Nell'app restano i VALORI dei token (`:root`, `[data-theme="light"]`) e le sue
-   decorazioni. Uso, in globals.css subito dopo `@import "tailwindcss";`:
+   le animazioni dei componenti (dialog, select, popover: tw-animate-css), le classi
+   dei componenti di sentira-core (chat, navigazione), il tema Sentira di default
+   (valori dei token, in fondo) e le decorazioni comuni. Uso, in globals.css subito
+   dopo `@import "tailwindcss";`:
 
      @import "sentira-core/stili.css";
 
-   Token che l'app deve definire: background foreground card card-foreground popover
-   popover-foreground primary primary-foreground secondary secondary-foreground muted
-   muted-foreground accent accent-foreground destructive destructive-foreground
-   success success-foreground warning warning-foreground border input ring chart-1…5
-   sidebar sidebar-foreground sidebar-primary sidebar-primary-foreground sidebar-accent
-   sidebar-accent-foreground sidebar-border sidebar-ring radius. Font (next/font):
-   --font-sans, --font-display, opzionale --font-mono. */
+   Nell'app restano solo il brand, se c'è (l'accento: --primary, --primary-foreground,
+   --ring, --chart-1…5, in `:root` e in `[data-theme="light"]`) e le decorazioni che
+   usa lei sola. Font (next/font, in app/layout.tsx): --font-sans, --font-display,
+   opzionale --font-mono. */
 
 @import "tw-animate-css";
 
@@ -97,8 +93,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* La barra in basso su mobile non finisce sotto l'indicatore home dell'iPhone */
+/* Le aree sicure dell'iPhone: la barra in basso non finisce sotto l'indicatore home */
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+.pt-safe { padding-top: env(safe-area-inset-top); }
 
 /* Shimmer: caricamento di una risposta AI */
 @keyframes shimmer {
@@ -186,4 +183,149 @@
 
 @media (prefers-reduced-motion: reduce) {
   .led-on { animation: none; }
+}
+
+/* === Il tema Sentira: rame su grafite, scuro di default ===
+   Valori di partenza di ogni prodotto. L'app che ha un brand ridefinisce in globals.css
+   l'accento (--primary, --primary-foreground, --ring, --chart-1…5) in ENTRAMBI i blocchi:
+   un `:root` dell'app vale anche nel tema chiaro, se lì non lo ripete. */
+:root {
+  --radius: 0.625rem;
+
+  --background: oklch(0.11 0.005 286);
+  --foreground: oklch(0.93 0.003 286);
+  --muted: oklch(0.17 0.005 286);
+  --muted-foreground: oklch(0.55 0.005 286);
+  --card: oklch(0.15 0.005 286);
+  --card-foreground: oklch(0.93 0.003 286);
+  --popover: oklch(0.15 0.005 286);
+  --popover-foreground: oklch(0.93 0.003 286);
+  --border: oklch(0.24 0.005 286);
+  --input: oklch(0.24 0.005 286);
+  --ring: oklch(0.72 0.11 65);
+
+  --primary: oklch(0.72 0.11 65);
+  --primary-foreground: oklch(0.11 0.005 286);
+  --secondary: oklch(0.20 0.005 286);
+  --secondary-foreground: oklch(0.88 0.005 286);
+  --accent: var(--muted);
+  --accent-foreground: var(--foreground);
+
+  --success: oklch(0.72 0.14 145);
+  --success-foreground: oklch(0.11 0.005 286);
+  --warning: oklch(0.82 0.12 75);
+  --warning-foreground: oklch(0.11 0.005 286);
+  --destructive: oklch(0.65 0.20 25);
+  --destructive-foreground: oklch(1 0 0);
+
+  --chart-1: oklch(0.72 0.11 65);
+  --chart-2: oklch(0.70 0.10 50);
+  --chart-3: oklch(0.65 0.09 35);
+  --chart-4: oklch(0.60 0.08 20);
+  --chart-5: oklch(0.55 0.07 10);
+
+  /* il menu laterale (e il pannello su mobile): un gradino sopra lo sfondo */
+  --sidebar: oklch(0.13 0.005 286);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--muted);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+[data-theme="light"] {
+  --background: oklch(0.985 0.002 60);
+  --foreground: oklch(0.15 0.005 60);
+  --muted: oklch(0.94 0.003 60);
+  --muted-foreground: oklch(0.45 0.005 60);
+  --card: oklch(0.97 0.003 60);
+  --card-foreground: oklch(0.15 0.005 60);
+  --popover: oklch(0.98 0.002 60);
+  --popover-foreground: oklch(0.15 0.005 60);
+  --border: oklch(0.86 0.003 60);
+  --input: oklch(0.86 0.003 60);
+  --ring: oklch(0.55 0.14 65);
+
+  --primary: oklch(0.55 0.14 65);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.93 0.003 60);
+  --secondary-foreground: oklch(0.15 0.005 60);
+
+  --success: oklch(0.52 0.15 145);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.65 0.16 75);
+  --warning-foreground: oklch(0.15 0.005 60);
+  --destructive: oklch(0.55 0.22 25);
+  --destructive-foreground: oklch(1 0 0);
+
+  --chart-1: oklch(0.55 0.14 65);
+  --chart-2: oklch(0.53 0.12 50);
+  --chart-3: oklch(0.48 0.10 35);
+  --chart-4: oklch(0.43 0.09 20);
+  --chart-5: oklch(0.38 0.08 10);
+
+  --sidebar: oklch(0.97 0.003 60);
+}
+
+/* === Le decorazioni comuni === */
+
+/* Filo dell'accento in cima a una card: striscia da strumento */
+.card-copper-top {
+  border-top: 2px solid var(--primary);
+}
+
+/* Bagliore caldo al passaggio */
+.card:hover {
+  border-color: color-mix(in oklch, var(--primary) 40%, var(--border));
+  box-shadow: 0 0 20px color-mix(in oklch, var(--primary) 8%, transparent);
+}
+tbody tr:hover {
+  border-left: 2px solid var(--primary);
+}
+
+/* Grana su tutta la pagina, appena percettibile */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Grana dietro la card del login (sfondo di default di <Login>) */
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  opacity: 0.03;
+}
+
+.spotlight-card { --spotlight-opacity: 0; }
+
+@layer utilities {
+  .transition-border {
+    transition: border-color 200ms ease-out;
+  }
+  .transition-lift {
+    transition: transform 200ms ease-out;
+  }
+}
+
+/* Segmento di avanzamento (passi di un wizard, di un'elaborazione) */
+.seg {
+  height: 3px; border-radius: 9999px;
+  background: color-mix(in oklch, var(--foreground) 12%, transparent);
+  transition: background 250ms ease-out;
+}
+.seg-active { background: var(--primary); box-shadow: 0 0 8px color-mix(in oklch, var(--primary) 60%, transparent); }
+
+/* In stampa solo la pagina: il menu laterale (testata e barra mobile hanno print:hidden) */
+@media print {
+  [data-slot="sidebar"] { display: none !important; }
+  body::before { display: none; }
 }

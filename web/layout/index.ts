@@ -1,11 +1,10 @@
-/* L'impalcatura delle pagine dei frontend Sentira: provider, login, 404, errore,
-   tema, barra mobile e contatori del menu. Voci di menu, logo e intestazione restano
-   nell'app. */
+/* L'impalcatura delle pagine dei frontend Sentira, uguale in ogni prodotto: il guscio
+   delle pagine protette (menu, testata, barra mobile), login, 404, errore, provider,
+   tema. Nell'app restano voci di menu, logo, contatori e i colori del brand. */
 export { ErrorPage } from "./ErrorPage";
+export { Guscio, type Conteggio } from "./Guscio";
 export { Login } from "./Login";
-export { MobileBottomNav } from "./MobileBottomNav";
 export { NotFound } from "./NotFound";
 export { Providers } from "./Providers";
-export { ThemeToggle } from "./ThemeToggle";
-export { titoloSezione, type NavItem } from "./nav";
+export { voceAttiva, type NavItem } from "./nav";
 export { useConteggio } from "./useConteggio";

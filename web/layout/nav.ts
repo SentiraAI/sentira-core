@@ -13,7 +13,13 @@ export interface NavItem {
   principale?: boolean;
 }
 
-/** Il titolo della sezione aperta, se è una voce del menu. */
-export function titoloSezione(items: NavItem[], pathname: string | null): string | undefined {
-  return items.find((i) => i.url === pathname)?.title;
+/** La voce del menu della pagina aperta: quella con l'url uguale, altrimenti quella
+ *  di cui la pagina è una sotto-pagina (`/aziende/detail` sta sotto `/aziende`).
+ *  La usano menu, testata e barra mobile: la stessa voce accesa ovunque. */
+export function voceAttiva(items: NavItem[], pathname: string | null): NavItem | undefined {
+  if (!pathname) return undefined;
+  return (
+    items.find((i) => i.url === pathname) ??
+    items.find((i) => i.url !== "/" && pathname.startsWith(`${i.url}/`))
+  );
 }

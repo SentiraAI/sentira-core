@@ -354,8 +354,10 @@ Le regole di business di un cliente restano nel suo `src/chat.py` (o nei file
 ## Frontend condiviso (`web/`)
 
 Ciò che è uguale nei frontend Next.js dei prodotti, come sorgente TSX che l'app
-compila. Nell'app restano i valori dei token (il colore del brand), il logo, le
-voci di menu, l'intestazione e le decorazioni proprie.
+compila: il guscio delle pagine protette, il login, il tema, i componenti. Nell'app
+restano le pagine, le voci di menu, il logo, i contatori del menu e, se il cliente ne
+ha uno, l'accento del brand. Così ogni prodotto ha la stessa forma, e una modifica al
+guscio si fa una volta qui.
 
 | Export | Cosa |
 |---|---|
@@ -364,25 +366,27 @@ voci di menu, l'intestazione e le decorazioni proprie.
 | `sentira-core/motion` | `FadeIn`, `StaggerList`, `AnimatedNumber` (in formato italiano), `PageTransition` |
 | `sentira-core/ui` | `cn`, `useIsMobile`, `EmptyState`, `ErrorState`, `LoadingState`, `KpiCard`, `Conferma` (al posto di `window.confirm`), `ChartTooltip`, `coloreSerie(i)`. Accanto, un file ciascuno, i componenti shadcn (`web/ui/button.tsx`…) |
 | `sentira-core/auth` | `AuthGuard` (sblocca solo con `autenticato: true`), `esci()` |
-| `sentira-core/layout` | `Providers`, `Login`, `ErrorPage`, `NotFound`, `ThemeToggle`, `MobileBottomNav`, `type NavItem`, `titoloSezione`, `useConteggio<T>(path)` |
+| `sentira-core/layout` | `Guscio` (login verificato, menu laterale, testata con titolo e orologio, barra mobile), `type Conteggio`, `Providers`, `Login` (sfondo di default: particelle nel colore del brand e grana), `ErrorPage`, `NotFound`, `type NavItem`, `voceAttiva`, `useConteggio<T>(path)` |
 | `sentira-core/chat` | la pagina chat (sopra) |
 | `sentira-core/consumo` | `<ConsumoAI etichette intestazione className>`: spesa AI in € (mese, storico 6/12/24 mesi, per funzione, totali). Legge `GET /api/usage/stats`, che l'app serve con `sentira_core.ai_usage.usage_stats(db, PRICING, mesi=…, colonna_data=…)`; cambio `AI_USD_TO_EUR` (default 0.86) |
-| `sentira-core/stili.css` | `@theme inline` (token → utility, comprese sidebar e grafici), `tw-animate-css`, `@layer base`, le classi usate dai componenti |
+| `sentira-core/stili.css` | `@theme inline` (token → utility, comprese sidebar e grafici), `tw-animate-css`, `@layer base`, le classi usate dai componenti, il tema Sentira di default (rame su grafite, scuro e chiaro) e le decorazioni comuni (`card-copper-top`, grana, `seg`…) |
 
 Nell'app, una volta:
 
 - `next.config.ts`: `transpilePackages: ["sentira-core"]`.
 - `globals.css`: `@import "tailwindcss";`, poi `@import "sentira-core/stili.css";` e
   `@source "../../node_modules/sentira-core/web";` (Tailwind non guarda in
-  `node_modules`), poi i valori dei token in `:root` e `[data-theme="light"]`:
-  l'elenco è in testa a `stili.css`.
+  `node_modules`). Il tema c'è già; un cliente con un brand ridefinisce solo
+  l'accento (`--primary`, `--primary-foreground`, `--ring`, `--chart-1…5`) in
+  `:root` **e** in `[data-theme="light"]`.
 - `tsconfig.json`, in `paths` prima di `"@/*"`:
   `"@/components/ui/*": ["./node_modules/sentira-core/web/ui/*"]`. Gli import
   `@/components/ui/button` restano com'erano e arrivano qui; `src/components/ui/`
   non esiste più. Funziona con il build di Next 16 (Turbopack).
 - Dipendenze: le `peerDependencies` di `package.json`.
 
-Le pagine di contorno diventano poche righe:
+Le pagine di contorno diventano poche righe, uguali in ogni app (lo scheletro di
+`infra/templates/app/frontend` le ha già):
 
 ```tsx
 // app/error.tsx
@@ -392,11 +396,23 @@ export default ErrorPage;
 
 // app/login/page.tsx
 <Login logo={<Logo size={48} className="mx-auto mb-4" />} titolo="Lead Hunter"
-  sottotitolo="Accedi alla tua inbox lead" sfondo={<ParticlesCanvas />} />
+  sottotitolo="Accedi alla tua inbox lead" />
 
-// app/(protected)/layout.tsx
-<AuthGuard><SidebarProvider><AppSidebar /> … <MobileBottomNav items={NAV_ITEMS} /></SidebarProvider></AuthGuard>
+// app/(protected)/layout.tsx — le pagine protette stanno tutte in app/(protected)/
+<Guscio nome="Lead Hunter" logo={<Logo size={32} />} voci={NAV_ITEMS}
+  useConteggi={useConteggiMenu}>{children}</Guscio>
+
+// lib/nav.ts — il menu, e i contatori accanto alle voci
+export const NAV_ITEMS: NavItem[] = [{ title: "Inbox", short: "Inbox", url: "/inbox", icon: Inbox, principale: true }];
+export function useConteggiMenu(): Record<string, Conteggio> {
+  const c = useConteggio<Record<string, number>>("/api/inbox/counts");
+  return { "/inbox": c?.draft ?? 0 };   // { n, tono: "info" }: informativo, non da fare
+}
 ```
+
+`useConteggi` è un hook: il Guscio lo chiama dentro il login verificato, quindi
+nessuna richiesta parte da chi non è entrato. `testata` aggiunge un elemento in
+testata (un'etichetta «Demo», un'azione globale).
 
 Dentro `web/`: import relativi (niente `@/`, che è dell'app), `"use client"` in
 cima ai file con hook. Un componente shadcn nuovo si aggiunge in `web/ui/`, con
@@ -427,7 +443,10 @@ template email in sandbox, HTML grezzo neutralizzato, limite globale ai login,
 algoritmo JWT fisso, niente URL con segreti nei log, niente menzioni Discord), `v11` a `1.8.0`
 (consumo AI in euro: `ai_usage.usage_stats` e `<ConsumoAI>` di `sentira-core/consumo`), `v12` a `1.8.1`
 (il grafico mensile di `<ConsumoAI>` mostrava le barre a 3 px: corretto; usare `v12`, non `v11`), `v13` a `1.8.2`
-(etichette delle funzioni per intero, barra più corta).
+(etichette delle funzioni per intero, barra più corta), `v14` a `1.9.0` (il `Guscio` delle
+pagine protette, il tema Sentira e le decorazioni in `stili.css`, lo sfondo del `Login`:
+le app tolgono `AppSidebar`, `CockpitHeader`, `ParticlesCanvas` e i token copiati;
+`titoloSezione` diventa `voceAttiva`, `MobileBottomNav` e `ThemeToggle` non si esportano più).
 Confronto, criteri di ammissione e passaggi di aggiornamento:
 [migrazione v5](docs/migrazione-v5.md).
 

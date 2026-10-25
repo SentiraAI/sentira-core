@@ -7,6 +7,15 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { Particelle } from "./Particelle";
+
+/** Lo sfondo di ogni login Sentira: particelle nel colore del brand e grana. */
+const SFONDO = (
+  <>
+    <Particelle />
+    <div className="grain pointer-events-none absolute inset-0" />
+  </>
+);
 
 /** Il titolo che entra una lettera alla volta. */
 function LetterSplit({ text, delay = 0 }: { text: string; delay?: number }) {
@@ -32,12 +41,12 @@ function LetterSplit({ text, delay = 0 }: { text: string; delay?: number }) {
 /** La pagina di login: una password, un bottone. Il cookie, la firma e la durata li
  *  decide il backend (sentira_core.auth); qui solo la chiamata e i messaggi, compreso
  *  il limite di 5 tentativi al minuto. */
-export function Login({ logo, titolo, sottotitolo, sfondo }: {
+export function Login({ logo, titolo, sottotitolo, sfondo = SFONDO }: {
   /** il logo del prodotto, già dimensionato */
   logo: ReactNode;
   titolo: string;
   sottotitolo: string;
-  /** decorazioni dietro la card (particelle, grana…) */
+  /** dietro la card: di default particelle e grana; `null` per toglierle */
   sfondo?: ReactNode;
 }) {
   const router = useRouter();
